@@ -5,7 +5,7 @@ import Link from "next/link";
 import { SongAutocomplete } from "@/components/song-autocomplete";
 import { CompatibilityList, type CompatibilityResultItem } from "@/components/compatibility-list";
 import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/card";
+import { SkeletonRecommendationList } from "@/components/ui/skeleton";
 import { track } from "@/lib/analytics/track";
 import type { Song } from "@/types/song";
 
@@ -35,20 +35,20 @@ export function DiscoverDemo() {
       </div>
 
       {loading && (
-        <div className="flex items-center gap-2 text-sm text-base-400">
-          <Spinner /> Buscando músicas que combinam…
+        <div className="w-full">
+          <SkeletonRecommendationList count={3} />
         </div>
       )}
 
       {!loading && selected && results.length > 0 && (
-        <div className="w-full">
+        <div className="w-full animate-fade-in-up">
           <p className="mb-3 text-center text-sm text-base-400">
-            Músicas que combinam com <span className="text-base-100">{selected.title}</span>:
+            Medleys sugeridos para <span className="text-base-100">{selected.title}</span>:
           </p>
           <CompatibilityList results={results} />
           <div className="mt-6 flex flex-col items-center gap-3 rounded-2xl border border-accent/20 bg-accent/5 p-6 text-center">
             <p className="text-sm text-base-200">
-              Crie sua conta grátis para ver todas as recomendações e montar o repertório completo.
+              Crie sua conta grátis para ver todos os medleys e montar o repertório completo.
             </p>
             <Button onClick={() => (window.location.href = "/signup")}>Testar grátis</Button>
           </div>
@@ -57,7 +57,7 @@ export function DiscoverDemo() {
 
       {!loading && selected && results.length === 0 && (
         <div className="w-full rounded-2xl border border-base-800 bg-base-900 p-6 text-center text-sm text-base-400">
-          Ainda não temos músicas suficientes no catálogo para recomendar algo forte para essa escolha.{" "}
+          Ainda não temos músicas suficientes no catálogo para sugerir um medley forte para essa escolha.{" "}
           <Link href="/signup" className="text-accent underline">
             Crie sua conta
           </Link>{" "}

@@ -14,7 +14,10 @@
     "generate:seed-csv": "tsx scripts/generate-seed-csv.ts",
     "seed": "tsx scripts/seed-dev.ts",
     "import:csv": "tsx scripts/import-songs-csv.ts",
-    "process:brand-assets": "node scripts/process-brand-assets.js"
+    "process:brand-assets": "node scripts/process-brand-assets.js",
+    "audit:completeness": "tsx scripts/audit-catalog-completeness.ts",
+    "mark:review-required": "tsx scripts/mark-review-required.ts",
+    "enrich:youtube": "tsx scripts/enrich-youtube.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.2",

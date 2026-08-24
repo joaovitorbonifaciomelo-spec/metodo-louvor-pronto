@@ -1,0 +1,325 @@
+# Auditoria de completude do catálogo
+
+Gerado em: 2026-08-24T17:11:13.826Z
+
+## Resumo
+- Total de músicas: 200
+- Com artista: 100 (50%)
+- Sem artista: 100
+- Com link do YouTube: 0
+- Sem link do YouTube: 200
+- Possíveis duplicatas (título parecido): 3
+
+## Distribuição de completude
+- <50%: 100
+- 50-80%: 100
+- >80%: 0
+
+## Músicas sem artista
+- A Alegria do Senhor
+- A Bênção
+- A Casa É Sua
+- A Ele a Glória
+- A Presença
+- A Vitória da Cruz
+- Abre os Olhos do Meu Coração
+- Aclame ao Senhor
+- Alvo Mais Que a Neve
+- Aos Pés da Cruz
+- Aquieta Minh'Alma
+- Boa Parte
+- Bondade de Deus
+- Caminho no Deserto
+- Cantarei Teu Amor Pra Sempre
+- Celebrai com Júbilo
+- Consagração
+- Coração Igual ao Teu
+- Creio Que Tu És a Cura
+- Descansarei
+- Deus Cuida de Mim
+- Deus de Promessas
+- Deus É Deus
+- Deus Está Aqui
+- Digno é o Senhor
+- Eis-Me Aqui
+- Ele É Exaltado
+- Ele Reina
+- Ele Vem
+- Em Espírito e em Verdade
+- Em Teus Braços
+- Emanuel
+- Espírito, Enche a Minha Vida
+- Estou Contigo Senhor
+- Eu e Minha Casa
+- Eu Me Rendo
+- Eu Navegarei
+- Eu Sei Que Não Estou Só
+- Eu Vou Celebrar
+- Eu Vou Construir
+- Fiel a Mim
+- Filho Pródigo
+- Foi na Cruz
+- Galileu
+- Graça
+- Graça Sobre Graça
+- Grande É o Senhor
+- Grande em Misericórdia
+- Grandioso És Tu
+- Há um Rio
+- Hosana
+- Jesus Em Tua Presença
+- Leva-Me Além
+- Louve
+- Lugar Secreto
+- Mais Perto Quero Estar
+- Maravilhoso És
+- Me Atraiu
+- Me Derramar
+- Meu Respirar
+- Meu Tributo
+- Nada Além do Sangue
+- Nada Temerei
+- Ninguém Explica Deus
+- Nos Braços do Pai
+- Nosso General É Cristo
+- O Nosso Deus É Soberano
+- Ousado Amor
+- Pai Nosso
+- Porque Ele Vive
+- Pra Onde Irei?
+- Pra Sempre
+- Quando Ele Vem
+- Quebrantado
+- Quero Conhecer Jesus
+- Quero Descer
+- Quero Louvar-Te
+- Rei dos Reis
+- Rei Jesus
+- Rei Meu
+- Reina em Mim
+- Rendido Estou
+- Renova-Me
+- Rude Cruz
+- Santo Espírito
+- Seja Engrandecido
+- Sonda-Me, Usa-Me
+- Sou Feliz
+- Te Agradeço
+- Te Louvarei
+- Todavia Me Alegrarei
+- Tu És Fiel, Senhor
+- Tu És Santo
+- Tu És Tudo Que Tenho
+- Único
+- Vim Para Adorar-Te
+- Vim Para Exaltar-Te
+- Vitorioso És
+- Vou Crer
+- Yeshua
+
+## Duplicatas / títulos parecidos para revisão manual
+- "Só Tu És Santo" (MORADA) vs "Tu És Santo" (sem artista) — 75%
+- "Amigo Espírito Santo" (Cassiane) vs "Santo Espírito" (sem artista) — 67%
+- "Ele Vem" (sem artista) vs "Quando Ele Vem" (sem artista) — 67%
+
+## Completude por música (ordenado, menor primeiro)
+- A Alegria do Senhor: 45%
+- A Bênção: 45%
+- A Casa É Sua: 45%
+- A Ele a Glória: 45%
+- A Presença: 45%
+- A Vitória da Cruz: 45%
+- Abre os Olhos do Meu Coração: 45%
+- Aclame ao Senhor: 45%
+- Alvo Mais Que a Neve: 45%
+- Aos Pés da Cruz: 45%
+- Aquieta Minh'Alma: 45%
+- Boa Parte: 45%
+- Bondade de Deus: 45%
+- Caminho no Deserto: 45%
+- Cantarei Teu Amor Pra Sempre: 45%
+- Celebrai com Júbilo: 45%
+- Consagração: 45%
+- Coração Igual ao Teu: 45%
+- Creio Que Tu És a Cura: 45%
+- Descansarei: 45%
+- Deus Cuida de Mim: 45%
+- Deus de Promessas: 45%
+- Deus É Deus: 45%
+- Deus Está Aqui: 45%
+- Digno é o Senhor: 45%
+- Eis-Me Aqui: 45%
+- Ele É Exaltado: 45%
+- Ele Reina: 45%
+- Ele Vem: 45%
+- Em Espírito e em Verdade: 45%
+- Em Teus Braços: 45%
+- Emanuel: 45%
+- Espírito, Enche a Minha Vida: 45%
+- Estou Contigo Senhor: 45%
+- Eu e Minha Casa: 45%
+- Eu Me Rendo: 45%
+- Eu Navegarei: 45%
+- Eu Sei Que Não Estou Só: 45%
+- Eu Vou Celebrar: 45%
+- Eu Vou Construir: 45%
+- Fiel a Mim: 45%
+- Filho Pródigo: 45%
+- Foi na Cruz: 45%
+- Galileu: 45%
+- Graça: 45%
+- Graça Sobre Graça: 45%
+- Grande É o Senhor: 45%
+- Grande em Misericórdia: 45%
+- Grandioso És Tu: 45%
+- Há um Rio: 45%
+- Hosana: 45%
+- Jesus Em Tua Presença: 45%
+- Leva-Me Além: 45%
+- Louve: 45%
+- Lugar Secreto: 45%
+- Mais Perto Quero Estar: 45%
+- Maravilhoso És: 45%
+- Me Atraiu: 45%
+- Me Derramar: 45%
+- Meu Respirar: 45%
+- Meu Tributo: 45%
+- Nada Além do Sangue: 45%
+- Nada Temerei: 45%
+- Ninguém Explica Deus: 45%
+- Nos Braços do Pai: 45%
+- Nosso General É Cristo: 45%
+- O Nosso Deus É Soberano: 45%
+- Ousado Amor: 45%
+- Pai Nosso: 45%
+- Porque Ele Vive: 45%
+- Pra Onde Irei?: 45%
+- Pra Sempre: 45%
+- Quando Ele Vem: 45%
+- Quebrantado: 45%
+- Quero Conhecer Jesus: 45%
+- Quero Descer: 45%
+- Quero Louvar-Te: 45%
+- Rei dos Reis: 45%
+- Rei Jesus: 45%
+- Rei Meu: 45%
+- Reina em Mim: 45%
+- Rendido Estou: 45%
+- Renova-Me: 45%
+- Rude Cruz: 45%
+- Santo Espírito: 45%
+- Seja Engrandecido: 45%
+- Sonda-Me, Usa-Me: 45%
+- Sou Feliz: 45%
+- Te Agradeço: 45%
+- Te Louvarei: 45%
+- Todavia Me Alegrarei: 45%
+- Tu És Fiel, Senhor: 45%
+- Tu És Santo: 45%
+- Tu És Tudo Que Tenho: 45%
+- Único: 45%
+- Vim Para Adorar-Te: 45%
+- Vim Para Exaltar-Te: 45%
+- Vitorioso És: 45%
+- Vou Crer: 45%
+- Yeshua: 45%
+- A Mensagem da Cruz — Nani Azevedo: 60%
+- A Resposta — Thalles Roberto: 60%
+- A Vitória Chegou — Luanna Dourado / Aurelina Dourado: 60%
+- Aba — Kemuel / Ton Carfi: 60%
+- Abraça-Me — David Quinlan: 60%
+- Acalma Meu Coração — Anderson Freire: 60%
+- Águas Purificadoras — Diante do Trono: 60%
+- Amigo Espírito Santo — Cassiane: 60%
+- Ao Único — Koinonya: 60%
+- Arde Outra Vez — Thalles Roberto: 60%
+- Até Que o Senhor Venha — Alessandro Vilas Boas: 60%
+- Atos 2 — Gabriela Rocha: 60%
+- Atrai Meu Coração — Nani Azevedo: 60%
+- Atraídos pelo Fogo — Casa Worship: 60%
+- Bênçãos Que Não Têm Fim — Isadora Pompeo: 60%
+- Canção do Apocalipse — Diante do Trono: 60%
+- Canção do Céu — Anderson Freire: 60%
+- Casa do Pai — Aline Barros: 60%
+- Castelo Forte — tradicional: 60%
+- Chuvas de Graça — Harpa Cristã: 60%
+- Coração de Joelhos — Samuel Miranda: 60%
+- Coração Valente — Anderson Freire: 60%
+- Creio em Ti — Arthur Callazans / Anderson Freire: 60%
+- Cuido dos Detalhes — André e Felipe / Isadora Pompeo: 60%
+- Cura — Maria Marçal: 60%
+- Deixa Queimar — Alessandro Vilas Boas: 60%
+- Deserto — Maria Marçal: 60%
+- Deus de Aliança — Toque no Altar: 60%
+- Deus de Futuro — Sarah Farias: 60%
+- Deus de Milagres — Davi Sacer: 60%
+- Deus Me Levantou — Thalles Roberto: 60%
+- Deus Não Desperdiça Suas Lágrimas — Paulo Neto: 60%
+- É Tudo Sobre Você — MORADA: 60%
+- Em Todas as Áreas — Gabriel Brito: 60%
+- Enche-Me — Isaías Saad / Gabriela Rocha: 60%
+- Era a Mão de Deus — Kailane Frauches: 60%
+- És Real Pra Mim — Fernanda Brum: 60%
+- Essência da Adoração — David Quinlan: 60%
+- Estamos de Pé — Marcus Salles: 60%
+- Eu Não Sou Mais Órfão — Gabriel Brito: 60%
+- Eu Não Vou Parar — Midian Lima: 60%
+- Eu Tenho Você — Incendiários / Marcelo Markes: 60%
+- Eu Vou Passar Pela Cruz — PG: 60%
+- Firme nas Promessas — tradicional: 60%
+- Grandes Coisas — Fernandinho: 60%
+- Há um Lugar — Heloisa Rosa: 60%
+- Hino da Vitória — Cassiane: 60%
+- Jeová Jireh — Aline Barros: 60%
+- Jesus é o Caminho — Heloisa Rosa: 60%
+- Manancial — Diante do Trono: 60%
+- Marca da Promessa — Trazendo a Arca: 60%
+- Mesmo Sem Entender — Thalles Roberto: 60%
+- Meu Prazer — PG: 60%
+- Meu Universo — PG: 60%
+- Minha Calmaria — Gabriel Brito / André e Felipe: 60%
+- Nada Além de Ti — Thalles Roberto: 60%
+- Não Chore João — MORADA: 60%
+- Não Há Deus Maior — Comunidade da Graça: 60%
+- Nas Palavras de Lázaro — Preto no Branco: 60%
+- O Nome de Jesus — Isadora Pompeo: 60%
+- O Que Sua Glória Fez Comigo — Fernanda Brum: 60%
+- O Teu Amor — Kemuel: 60%
+- Oh Quão Lindo Esse Nome É — Kemuel: 60%
+- Olha Pra Mim — Toque no Altar: 60%
+- Os Sonhos de Deus — Gabriela Rocha: 60%
+- Para Ti Eu Vou — Central 3: 60%
+- Passa Lá em Casa Jesus — Kailane Frauches: 60%
+- Pode Morar Aqui — Theo Rubia: 60%
+- Poder Pra Salvar — Aline Barros: 60%
+- Preciso de Ti — Diante do Trono: 60%
+- Primeiro Amor — Carlinhos Felix: 60%
+- Quão Grande É o Meu Deus — Soraya Moraes: 60%
+- Que Se Abram os Céus — Nívea Soares: 60%
+- Quem É Esse? — Julliany Souza: 60%
+- Raridade — Anderson Freire: 60%
+- Restitui — Davi Sacer: 60%
+- Resultado — Isadora Pompeo: 60%
+- Ruja o Leão — fhop music: 60%
+- Santo Pra Sempre — Fernandinho: 60%
+- Santo, Santo, Santo — tradicional: 60%
+- Se Eles Soubessem — Laura Souguellis: 60%
+- Se Eu Não Te Ouvir — Sarah Farias: 60%
+- Segura na Mão de Deus — tradicional: 60%
+- Só Tu És Santo — MORADA: 60%
+- Sobre as Águas — Trazendo a Arca: 60%
+- Sua Paz — Isadora Pompeo: 60%
+- Tempo de Festa — Diante do Trono: 60%
+- Teu Amor Não Falha — Nívea Soares: 60%
+- Todas as Coisas / Tudo Entregarei — Isaías Saad: 60%
+- Todos Um — Kemuel: 60%
+- Tua Graça Me Basta — Davi Sacer: 60%
+- Tudo É Perda — Felipe Rodrigues: 60%
+- Vamos Cantar — Julia Vitória / Marcelo Markes: 60%
+- Vejo Uma Luz — Rebeca Carvalho: 60%
+- Vem — Julia Vitória: 60%
+- Vencendo de Joelhos — Kemilly Santos: 60%
+- Vencendo Vem Jesus — tradicional: 60%
+- Venha Ao Teu Reino — Davi Sacer: 60%
+- Vida aos Sepulcros — Gabriela Rocha: 60%
+- Vim Falar com Deus — Delino Marçal: 60%

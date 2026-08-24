@@ -44,6 +44,8 @@ export type Difficulty = "iniciante" | "intermediaria" | "avancada";
 /** 1 = muito contemplativa ... 5 = muito celebrativa */
 export type EnergyLevel = 1 | 2 | 3 | 4 | 5;
 
+export type YoutubeStatus = "pending" | "found" | "review" | "not_found" | "confirmed";
+
 export interface Song {
   id: string;
   title: string;
@@ -61,6 +63,14 @@ export interface Song {
   youtubeUrl: string | null;
   spotifyUrl: string | null;
   active: boolean;
+  /** true quando um campo (ex.: artista) não foi preenchido por falta de confiança — nunca inventado. */
+  reviewRequired: boolean;
+  youtubeVideoId: string | null;
+  youtubeTitle: string | null;
+  youtubeChannel: string | null;
+  youtubeThumbnail: string | null;
+  youtubeVerifiedAt: string | null;
+  youtubeStatus: YoutubeStatus;
   createdAt: string;
   updatedAt: string;
 }
@@ -81,6 +91,13 @@ export interface SongRow {
   youtube_url: string | null;
   spotify_url: string | null;
   active: boolean;
+  review_required: boolean;
+  youtube_video_id: string | null;
+  youtube_title: string | null;
+  youtube_channel: string | null;
+  youtube_thumbnail: string | null;
+  youtube_verified_at: string | null;
+  youtube_status: string;
   created_at: string;
   updated_at: string;
 }
@@ -102,6 +119,13 @@ export function songFromRow(row: SongRow): Song {
     youtubeUrl: row.youtube_url,
     spotifyUrl: row.spotify_url,
     active: row.active,
+    reviewRequired: row.review_required ?? false,
+    youtubeVideoId: row.youtube_video_id ?? null,
+    youtubeTitle: row.youtube_title ?? null,
+    youtubeChannel: row.youtube_channel ?? null,
+    youtubeThumbnail: row.youtube_thumbnail ?? null,
+    youtubeVerifiedAt: row.youtube_verified_at ?? null,
+    youtubeStatus: (row.youtube_status as YoutubeStatus) ?? "pending",
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

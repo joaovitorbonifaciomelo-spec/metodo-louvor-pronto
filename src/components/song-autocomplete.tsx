@@ -12,7 +12,13 @@ interface SongAutocompleteProps {
   emptyAction?: (query: string) => React.ReactNode;
 }
 
-/** Busca com debounce (seção 31): "Bonda..." já sugere "Bondade de Deus". */
+/**
+ * Busca com debounce (seção 31): "Bonda..." já sugere "Bondade de Deus".
+ * Cache em memória por normalizedQuery evita repetir a mesma request de
+ * rede ao apagar/redigitar, e um AbortController descarta respostas de
+ * buscas antigas que chegam fora de ordem — sem isso, digitar rápido podia
+ * fazer um resultado antigo "piscar" por cima do mais recente.
+ */
 export function SongAutocomplete({
   placeholder = "Digite o nome de um louvor…",
   onSelect,
@@ -24,22 +30,45 @@ export function SongAutocomplete({
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const cacheRef = useRef<Map<string, Song[]>>(new Map());
+  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
-    if (query.trim().length < 2) {
+    const normalized = query.trim().toLowerCase();
+
+    if (normalized.length < 2) {
       setResults([]);
       return;
     }
+
+    const cached = cacheRef.current.get(normalized);
+    if (cached) {
+      setResults(cached);
+      setOpen(true);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     const handle = setTimeout(() => {
-      fetch(`/api/songs/search?q=${encodeURIComponent(query.trim())}`)
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+
+      fetch(`/api/songs/search?q=${encodeURIComponent(normalized)}`, { signal: controller.signal })
         .then((res) => res.json())
         .then((data) => {
-          setResults(data.songs ?? []);
+          const songs: Song[] = data.songs ?? [];
+          cacheRef.current.set(normalized, songs);
+          setResults(songs);
           setOpen(true);
         })
-        .catch(() => setResults([]))
-        .finally(() => setLoading(false));
+        .catch((err) => {
+          if (err?.name !== "AbortError") setResults([]);
+        })
+        .finally(() => {
+          if (abortRef.current === controller) setLoading(false);
+        });
     }, 250);
     return () => clearTimeout(handle);
   }, [query]);
@@ -73,7 +102,7 @@ export function SongAutocomplete({
       </div>
 
       {open && results.length > 0 && (
-        <ul className="scrollbar-thin absolute z-20 mt-2 max-h-[60vh] w-full overflow-y-auto overscroll-contain rounded-xl border border-base-700 bg-base-850 shadow-xl">
+        <ul className="scrollbar-thin animate-fade-in absolute z-20 mt-2 max-h-[60vh] w-full overflow-y-auto overscroll-contain rounded-xl border border-base-700 bg-base-850 shadow-xl">
           {results.map((song) => (
             <li key={song.id}>
               <button
@@ -94,7 +123,7 @@ export function SongAutocomplete({
       )}
 
       {open && !loading && query.trim().length >= 2 && results.length === 0 && (
-        <div className="absolute z-20 mt-2 w-full rounded-xl border border-base-700 bg-base-850 px-4 py-3 text-sm text-base-400 shadow-xl">
+        <div className="animate-fade-in absolute z-20 mt-2 w-full rounded-xl border border-base-700 bg-base-850 px-4 py-3 text-sm text-base-400 shadow-xl">
           <p>
             Nenhuma música encontrada para &ldquo;{query}&rdquo;.
           </p>

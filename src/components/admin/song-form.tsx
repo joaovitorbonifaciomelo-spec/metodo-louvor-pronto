@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -22,6 +23,69 @@ function fromCommaList(value: string): string[] {
     .filter(Boolean);
 }
 
+/** Sugestão automática do enriquecimento via YouTube (seção 10) — aprovar/rejeitar/trocar. */
+function YoutubeSuggestionReview({ song, onApprove }: { song: Song; onApprove: (url: string) => void }) {
+  const [status, setStatus] = useState<"idle" | "saving">("idle");
+  const suggestedUrl = `https://www.youtube.com/watch?v=${song.youtubeVideoId}`;
+
+  async function patch(body: Record<string, unknown>) {
+    setStatus("saving");
+    await fetch(`/api/songs/${song.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    setStatus("idle");
+  }
+
+  return (
+    <Card className="flex flex-col gap-3 border-accent/30 bg-accent/5">
+      <p className="text-sm font-medium text-base-200">Sugestão automática do YouTube — precisa de revisão</p>
+      <div className="flex items-start gap-3">
+        {song.youtubeThumbnail && (
+          <Image
+            src={song.youtubeThumbnail}
+            alt=""
+            width={112}
+            height={64}
+            className="h-16 w-28 shrink-0 rounded-lg object-cover"
+            unoptimized
+          />
+        )}
+        <div className="min-w-0">
+          <p className="truncate text-sm text-base-100">{song.youtubeTitle}</p>
+          <p className="truncate text-xs text-base-400">{song.youtubeChannel}</p>
+          <a href={suggestedUrl} target="_blank" rel="noreferrer" className="text-xs text-accent underline">
+            Abrir no YouTube
+          </a>
+        </div>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <Button
+          type="button"
+          size="sm"
+          disabled={status === "saving"}
+          onClick={async () => {
+            await patch({ youtubeUrl: suggestedUrl, reviewRequired: false, youtubeStatus: "confirmed" });
+            onApprove(suggestedUrl);
+          }}
+        >
+          Aprovar
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="secondary"
+          disabled={status === "saving"}
+          onClick={() => patch({ youtubeStatus: "not_found" })}
+        >
+          Rejeitar
+        </Button>
+      </div>
+    </Card>
+  );
+}
+
 export function SongForm({ song }: SongFormProps) {
   const router = useRouter();
   const isEdit = Boolean(song);
@@ -39,6 +103,7 @@ export function SongForm({ song }: SongFormProps) {
   const [tags, setTags] = useState(toCommaList(song?.tags ?? []));
   const [youtubeUrl, setYoutubeUrl] = useState(song?.youtubeUrl ?? "");
   const [active, setActive] = useState(song?.active ?? true);
+  const [reviewRequired, setReviewRequired] = useState(song?.reviewRequired ?? false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -65,6 +130,7 @@ export function SongForm({ song }: SongFormProps) {
       tags: fromCommaList(tags),
       youtubeUrl: youtubeUrl || null,
       active,
+      reviewRequired,
     };
 
     const res = await fetch(isEdit ? `/api/songs/${song!.id}` : "/api/songs", {
@@ -166,10 +232,20 @@ export function SongForm({ song }: SongFormProps) {
         <Input id="youtubeUrl" value={youtubeUrl} onChange={(e) => setYoutubeUrl(e.target.value)} placeholder="https://youtube.com/…" />
       </div>
 
-      <label className="flex items-center gap-2 text-sm text-base-300">
-        <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} />
-        Ativa (visível na busca)
-      </label>
+      {song?.youtubeStatus === "review" && song.youtubeVideoId && (
+        <YoutubeSuggestionReview song={song} onApprove={(url) => setYoutubeUrl(url)} />
+      )}
+
+      <div className="flex flex-col gap-2">
+        <label className="flex items-center gap-2 text-sm text-base-300">
+          <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} />
+          Ativa (visível na busca)
+        </label>
+        <label className="flex items-center gap-2 text-sm text-base-300">
+          <input type="checkbox" checked={reviewRequired} onChange={(e) => setReviewRequired(e.target.checked)} />
+          Precisa de revisão (ex.: artista incerto — desmarque depois de confirmar)
+        </label>
+      </div>
 
       {error && <p className="text-sm text-red-400">{error}</p>}
 

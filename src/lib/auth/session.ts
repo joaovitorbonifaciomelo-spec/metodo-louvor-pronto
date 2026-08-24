@@ -24,3 +24,16 @@ export async function isAdmin(): Promise<boolean> {
   const { profile } = await getSessionInfo();
   return profile?.role === "admin";
 }
+
+/**
+ * Só o id do usuário (sem consultar `profiles`) — para caminhos quentes como
+ * busca/recomendação, onde só precisamos atribuir o evento de analytics e uma
+ * segunda query no banco só para isso adicionaria latência desnecessária.
+ */
+export async function getUserIdOnly(): Promise<string | null> {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  return user?.id ?? null;
+}

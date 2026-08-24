@@ -21,6 +21,7 @@ export const createSongSchema = z.object({
   youtubeUrl: z.string().url().nullable().optional(),
   spotifyUrl: z.string().url().nullable().optional(),
   active: z.boolean().optional().default(true),
+  reviewRequired: z.boolean().optional(),
 });
 
 export type CreateSongInput = z.infer<typeof createSongSchema>;

@@ -20,6 +20,13 @@ export function makeSong(overrides: Partial<Song> = {}): Song {
     youtubeUrl: overrides.youtubeUrl ?? null,
     spotifyUrl: overrides.spotifyUrl ?? null,
     active: overrides.active ?? true,
+    reviewRequired: overrides.reviewRequired ?? false,
+    youtubeVideoId: overrides.youtubeVideoId ?? null,
+    youtubeTitle: overrides.youtubeTitle ?? null,
+    youtubeChannel: overrides.youtubeChannel ?? null,
+    youtubeThumbnail: overrides.youtubeThumbnail ?? null,
+    youtubeVerifiedAt: overrides.youtubeVerifiedAt ?? null,
+    youtubeStatus: overrides.youtubeStatus ?? "pending",
     createdAt: overrides.createdAt ?? new Date().toISOString(),
     updatedAt: overrides.updatedAt ?? new Date().toISOString(),
   };

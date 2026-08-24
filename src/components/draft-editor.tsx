@@ -6,8 +6,11 @@ import { Input, Select } from "@/components/ui/input";
 import { Card, Spinner } from "@/components/ui/card";
 import { SongAutocomplete } from "@/components/song-autocomplete";
 import { MOMENTS } from "@/types/song";
+import { cn } from "@/lib/utils";
 import type { DraftSetlistItem } from "@/types/draft";
 import type { Song } from "@/types/song";
+
+const REMOVE_TRANSITION_MS = 180;
 
 function AddSongToDraftForm({ onAdd }: { onAdd: (song: Song, moment: string) => void }) {
   const [moment, setMoment] = useState<string>(MOMENTS[0]);
@@ -40,6 +43,8 @@ interface DraftEditorProps {
 
 /** Edição do repertório antes de salvar (seção 16): travar, mover, trocar, remover. */
 export function DraftEditor({ draft, setDraft, onAddSong, onRegenerate, onSave, loading, saving, error }: DraftEditorProps) {
+  const [removingIds, setRemovingIds] = useState<Set<string>>(new Set());
+
   function move(index: number, direction: -1 | 1) {
     setDraft((prev) => {
       const next = [...prev];
@@ -57,7 +62,15 @@ export function DraftEditor({ draft, setDraft, onAddSong, onRegenerate, onSave, 
   }
 
   function remove(tempId: string) {
-    setDraft((prev) => prev.filter((item) => item.tempId !== tempId));
+    setRemovingIds((prev) => new Set(prev).add(tempId));
+    setTimeout(() => {
+      setDraft((prev) => prev.filter((item) => item.tempId !== tempId));
+      setRemovingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(tempId);
+        return next;
+      });
+    }, REMOVE_TRANSITION_MS);
   }
 
   function updateField(tempId: string, field: "selectedKey" | "notes" | "referenceUrl", value: string) {
@@ -75,71 +88,83 @@ export function DraftEditor({ draft, setDraft, onAddSong, onRegenerate, onSave, 
       <p className="text-xs text-base-400">Músicas travadas (🔒) não mudam ao gerar outra opção.</p>
 
       <div className="flex flex-col gap-3">
-        {draft.map((item, index) => (
-          <Card key={item.tempId} className="flex flex-col gap-3">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <span className="text-xs text-base-400">
-                  {String(index + 1).padStart(2, "0")} — {item.moment}
-                </span>
-                <h3 className="text-base font-semibold text-base-50">{item.song.title}</h3>
-                {item.song.artist && <p className="text-xs text-base-400">{item.song.artist}</p>}
+        {draft.map((item, index) => {
+          const isRemoving = removingIds.has(item.tempId);
+          return (
+            <Card
+              key={item.tempId}
+              className={cn(
+                "animate-fade-in-up flex flex-col gap-3 transition-all duration-200",
+                isRemoving && "pointer-events-none -translate-x-1 scale-[0.98] opacity-0"
+              )}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <span className="text-xs text-base-400">
+                    {String(index + 1).padStart(2, "0")} — {item.moment}
+                  </span>
+                  <h3 className="text-base font-semibold text-base-50">{item.song.title}</h3>
+                  {item.song.artist && <p className="text-xs text-base-400">{item.song.artist}</p>}
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => move(index, -1)}
+                    disabled={index === 0}
+                    className="flex h-9 w-9 items-center justify-center rounded-lg bg-base-800 text-base-300 transition-colors hover:bg-base-700 active:scale-95 disabled:opacity-30"
+                  >
+                    ↑
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => move(index, 1)}
+                    disabled={index === draft.length - 1}
+                    className="flex h-9 w-9 items-center justify-center rounded-lg bg-base-800 text-base-300 transition-colors hover:bg-base-700 active:scale-95 disabled:opacity-30"
+                  >
+                    ↓
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => toggleLock(item.tempId)}
+                    className={cn(
+                      "flex h-9 w-9 items-center justify-center rounded-lg text-sm transition-colors active:scale-95",
+                      item.locked ? "bg-accent/20 text-accent" : "bg-base-800 text-base-300 hover:bg-base-700"
+                    )}
+                    title="Travar música"
+                  >
+                    🔒
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => remove(item.tempId)}
+                    className="flex h-9 w-9 items-center justify-center rounded-lg bg-base-800 text-base-300 transition-colors hover:bg-red-500/20 hover:text-red-400 active:scale-95"
+                    title="Remover"
+                  >
+                    ✕
+                  </button>
+                </div>
               </div>
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => move(index, -1)}
-                  disabled={index === 0}
-                  className="h-7 w-7 rounded-lg bg-base-800 text-base-300 hover:bg-base-700 disabled:opacity-30"
-                >
-                  ↑
-                </button>
-                <button
-                  type="button"
-                  onClick={() => move(index, 1)}
-                  disabled={index === draft.length - 1}
-                  className="h-7 w-7 rounded-lg bg-base-800 text-base-300 hover:bg-base-700 disabled:opacity-30"
-                >
-                  ↓
-                </button>
-                <button
-                  type="button"
-                  onClick={() => toggleLock(item.tempId)}
-                  className={`h-7 w-7 rounded-lg text-sm hover:bg-base-700 ${item.locked ? "bg-accent/20 text-accent" : "bg-base-800 text-base-300"}`}
-                  title="Travar música"
-                >
-                  🔒
-                </button>
-                <button
-                  type="button"
-                  onClick={() => remove(item.tempId)}
-                  className="h-7 w-7 rounded-lg bg-base-800 text-base-300 hover:bg-red-500/20 hover:text-red-400"
-                  title="Remover"
-                >
-                  ✕
-                </button>
-              </div>
-            </div>
 
-            <div className="grid gap-2 sm:grid-cols-3">
-              <Input
-                placeholder="Tom (ex.: G)"
-                value={item.selectedKey ?? ""}
-                onChange={(e) => updateField(item.tempId, "selectedKey", e.target.value)}
-              />
-              <Input
-                placeholder="Link de referência"
-                value={item.referenceUrl ?? ""}
-                onChange={(e) => updateField(item.tempId, "referenceUrl", e.target.value)}
-              />
-              <Input
-                placeholder="Observação"
-                value={item.notes ?? ""}
-                onChange={(e) => updateField(item.tempId, "notes", e.target.value)}
-              />
-            </div>
-          </Card>
-        ))}
+              <div className="grid gap-2 sm:grid-cols-3">
+                <Input
+                  placeholder="Tom (ex.: G)"
+                  value={item.selectedKey ?? ""}
+                  onChange={(e) => updateField(item.tempId, "selectedKey", e.target.value)}
+                />
+                <Input
+                  placeholder="Link de referência"
+                  value={item.referenceUrl ?? ""}
+                  onChange={(e) => updateField(item.tempId, "referenceUrl", e.target.value)}
+                />
+                <Input
+                  placeholder="Observação"
+                  value={item.notes ?? ""}
+                  onChange={(e) => updateField(item.tempId, "notes", e.target.value)}
+                />
+              </div>
+            </Card>
+          );
+        })}
       </div>
 
       <Card>

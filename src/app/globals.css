@@ -47,14 +47,6 @@ body {
   }
 }
 
-@keyframes sheet-in {
-  from {
-    transform: translateY(100%);
-  }
-  to {
-    transform: translateY(0);
-  }
-}
 @keyframes fade-in {
   from {
     opacity: 0;
@@ -63,9 +55,39 @@ body {
     opacity: 1;
   }
 }
-.animate-sheet-in {
-  animation: sheet-in 0.25s ease-out;
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
 }
 .animate-fade-in {
-  animation: fade-in 0.2s ease-out;
+  animation: fade-in 0.18s ease-out both;
+}
+.animate-fade-in-up {
+  animation: fade-in-up 0.22s ease-out both;
+}
+
+/* Skeleton de carregamento (seção "Skeletons" do briefing) */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background-color: theme("colors.base.800");
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.06), transparent);
+  animation: shimmer 1.6s infinite;
 }

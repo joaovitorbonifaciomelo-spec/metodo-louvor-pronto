@@ -37,11 +37,13 @@ export async function POST(request: Request) {
   }
 
   const supabase = createClient();
-  const { data: songRows, error } = await supabase.from("songs").select("*").eq("active", true).limit(1000);
+  const [{ data: songRows, error }, history] = await Promise.all([
+    supabase.from("songs").select("*").eq("active", true).limit(1000),
+    loadUserSetlistHistory(supabase, guard.userId),
+  ]);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   const songs = ((songRows ?? []) as SongRow[]).map(songFromRow);
-  const history = await loadUserSetlistHistory(supabase, guard.userId);
 
   const variants = generateSetlist({
     songs,

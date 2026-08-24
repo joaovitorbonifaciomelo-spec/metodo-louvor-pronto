@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { product } from "@/lib/config/product";
+import { ToastProvider } from "@/components/ui/toast-provider";
 
 export const metadata: Metadata = {
   title: `${product.name} — ${product.tagline}`,
@@ -11,7 +12,9 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="pt-BR" className="dark">
-      <body className="min-h-screen bg-base-950 font-sans antialiased">{children}</body>
+      <body className="min-h-screen bg-base-950 font-sans antialiased">
+        <ToastProvider>{children}</ToastProvider>
+      </body>
     </html>
   );
 }

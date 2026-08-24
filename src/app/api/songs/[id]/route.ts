@@ -31,6 +31,8 @@ const updateSchema = z.object({
   youtubeUrl: z.string().url().nullable().optional(),
   spotifyUrl: z.string().url().nullable().optional(),
   active: z.boolean().optional(),
+  reviewRequired: z.boolean().optional(),
+  youtubeStatus: z.enum(["pending", "found", "review", "not_found", "confirmed"]).optional(),
 });
 
 export async function PATCH(request: Request, { params }: { params: { id: string } }) {
@@ -43,10 +45,12 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     return NextResponse.json({ error: parsed.error.issues.map((i) => i.message).join(", ") }, { status: 400 });
   }
 
-  const { youtubeUrl, spotifyUrl, ...rest } = parsed.data;
+  const { youtubeUrl, spotifyUrl, reviewRequired, youtubeStatus, ...rest } = parsed.data;
   const update: Record<string, unknown> = { ...rest };
   if (youtubeUrl !== undefined) update.youtube_url = youtubeUrl;
   if (spotifyUrl !== undefined) update.spotify_url = spotifyUrl;
+  if (reviewRequired !== undefined) update.review_required = reviewRequired;
+  if (youtubeStatus !== undefined) update.youtube_status = youtubeStatus;
 
   const supabase = createClient();
   const { data, error } = await supabase.from("songs").update(update).eq("id", params.id).select("*").single();

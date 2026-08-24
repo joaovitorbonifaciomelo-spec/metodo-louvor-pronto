@@ -13,19 +13,25 @@ export interface AdminStats {
 
 /** Agregações do dashboard admin (seção 23). Compartilhado entre a rota de API e a página. */
 export async function getAdminStats(supabase: SupabaseClient): Promise<AdminStats> {
-  const [{ count: totalSongs }, { count: activeSongs }, { count: totalUsers }, { count: totalSetlists }] =
-    await Promise.all([
-      supabase.from("songs").select("id", { count: "exact", head: true }),
-      supabase.from("songs").select("id", { count: "exact", head: true }).eq("active", true),
-      supabase.from("profiles").select("id", { count: "exact", head: true }),
-      supabase.from("setlists").select("id", { count: "exact", head: true }),
-    ]);
-
-  const { data: searchEvents } = await supabase
-    .from("analytics_events")
-    .select("payload")
-    .eq("event_name", "song_searched")
-    .limit(5000);
+  // Todas as agregações são independentes entre si — buscadas em paralelo
+  // em vez de 7 round-trips sequenciais ao Supabase.
+  const [
+    { count: totalSongs },
+    { count: activeSongs },
+    { count: totalUsers },
+    { count: totalSetlists },
+    { data: searchEvents },
+    { data: requestRows },
+    { data: itemRows },
+  ] = await Promise.all([
+    supabase.from("songs").select("id", { count: "exact", head: true }),
+    supabase.from("songs").select("id", { count: "exact", head: true }).eq("active", true),
+    supabase.from("profiles").select("id", { count: "exact", head: true }),
+    supabase.from("setlists").select("id", { count: "exact", head: true }),
+    supabase.from("analytics_events").select("payload").eq("event_name", "song_searched").limit(5000),
+    supabase.from("song_requests").select("query, status").limit(5000),
+    supabase.from("setlist_items").select("song_id, songs(title, artist)").limit(5000),
+  ]);
 
   const searchCounts = new Map<string, number>();
   for (const row of searchEvents ?? []) {
@@ -38,7 +44,6 @@ export async function getAdminStats(supabase: SupabaseClient): Promise<AdminStat
     .sort((a, b) => b.count - a.count)
     .slice(0, 10);
 
-  const { data: requestRows } = await supabase.from("song_requests").select("query, status").limit(5000);
   const requestCounts = new Map<string, number>();
   for (const row of requestRows ?? []) {
     const key = row.query.trim().toLowerCase();
@@ -49,7 +54,6 @@ export async function getAdminStats(supabase: SupabaseClient): Promise<AdminStat
     .sort((a, b) => b.count - a.count)
     .slice(0, 10);
 
-  const { data: itemRows } = await supabase.from("setlist_items").select("song_id, songs(title, artist)").limit(5000);
   type SongJoinRow = {
     song_id: string;
     songs: { title: string; artist: string | null } | { title: string; artist: string | null }[] | null;

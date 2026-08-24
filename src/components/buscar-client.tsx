@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { SongAutocomplete } from "@/components/song-autocomplete";
 import { SongRequestButton } from "@/components/song-request-button";
 import { CompatibilityList, type CompatibilityResultItem } from "@/components/compatibility-list";
-import { Spinner } from "@/components/ui/card";
+import { SkeletonRecommendationList } from "@/components/ui/skeleton";
 import { track } from "@/lib/analytics/track";
 import type { Song } from "@/types/song";
 
@@ -41,9 +41,9 @@ export function BuscarClient() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-xl font-semibold text-base-50">Descubra quais músicas combinam</h1>
+        <h1 className="text-xl font-semibold text-base-50">Encontrar medleys</h1>
         <p className="mt-1 text-sm text-base-400">
-          Digite um louvor que você já escolheu — mostramos as melhores opções para continuar o repertório.
+          Veja quais louvores combinam e podem funcionar juntos no culto. Digite um louvor que você já escolheu.
         </p>
       </div>
 
@@ -53,16 +53,12 @@ export function BuscarClient() {
         emptyAction={(query) => <SongRequestButton query={query} />}
       />
 
-      {loading && (
-        <div className="flex items-center gap-2 text-sm text-base-400">
-          <Spinner /> Calculando compatibilidade…
-        </div>
-      )}
+      {loading && <SkeletonRecommendationList count={3} />}
 
       {!loading && selected && (
-        <div>
+        <div className="animate-fade-in-up">
           <p className="mb-3 text-sm text-base-400">
-            Músicas que combinam com <span className="text-base-100">{selected.title}</span>:
+            Medleys sugeridos para <span className="text-base-100">{selected.title}</span>:
           </p>
           <CompatibilityList
             results={results}
@@ -72,14 +68,14 @@ export function BuscarClient() {
           {results.length > 0 && results.length === limit && limit < 15 && (
             <button
               type="button"
-              className="mt-4 text-sm text-accent hover:underline"
+              className="mt-4 min-h-[44px] text-sm text-accent hover:underline"
               onClick={() => {
                 const next = limit + 5;
                 setLimit(next);
                 loadResults(selected, next);
               }}
             >
-              Ver mais opções
+              Ver mais medleys
             </button>
           )}
         </div>
