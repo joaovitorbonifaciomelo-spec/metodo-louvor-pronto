@@ -6,8 +6,15 @@
   --font-sans: "Inter", system-ui, -apple-system, sans-serif;
 }
 
+html {
+  /* impede qualquer overflow-x acidental de vazar como scroll horizontal da página */
+  overflow-x: hidden;
+}
+
 body {
   @apply bg-base-950 text-base-100;
+  overflow-x: hidden;
+  font-size: 16px;
 }
 
 ::selection {
@@ -16,4 +23,49 @@ body {
 
 .scrollbar-thin {
   scrollbar-width: thin;
+}
+
+/* Safe-area (notch/home indicator do iPhone) para headers e CTAs fixos */
+.safe-top {
+  padding-top: env(safe-area-inset-top);
+}
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.pb-safe-bottom-nav {
+  padding-bottom: calc(4.25rem + env(safe-area-inset-bottom));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@keyframes sheet-in {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.animate-sheet-in {
+  animation: sheet-in 0.25s ease-out;
+}
+.animate-fade-in {
+  animation: fade-in 0.2s ease-out;
 }

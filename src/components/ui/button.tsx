@@ -12,10 +12,11 @@ const VARIANT_CLASSES: Record<Variant, string> = {
   danger: "bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/30",
 };
 
+// min-h garante toque confortável (~44px) mesmo no tamanho "sm".
 const SIZE_CLASSES: Record<Size, string> = {
-  sm: "text-sm px-3 py-1.5 rounded-lg",
-  md: "text-sm px-4 py-2.5 rounded-xl",
-  lg: "text-base px-5 py-3 rounded-xl",
+  sm: "text-sm px-3 py-1.5 rounded-lg min-h-[40px]",
+  md: "text-sm px-4 py-2.5 rounded-xl min-h-[44px]",
+  lg: "text-base px-5 py-3 rounded-xl min-h-[48px]",
 };
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {

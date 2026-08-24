@@ -23,7 +23,11 @@ interface CompatibilityListProps {
   onSecondaryAction?: (song: Song) => void;
 }
 
-/** Lista de "músicas que combinam" com motivos explicados (seções 6 e 13). */
+/**
+ * Lista de "músicas que combinam" (seções 6 e 13) — sempre 1 coluna,
+ * sem comprimir informação horizontalmente (seção "Recomendações" do
+ * briefing de UX mobile): score → título/artista → motivos → tom/momento → ação.
+ */
 export function CompatibilityList({
   results,
   primaryActionLabel,
@@ -41,60 +45,66 @@ export function CompatibilityList({
 
   return (
     <div className="flex flex-col gap-3">
-      {results.map(({ song, compatibility, reasons }, index) => (
-        <Card key={song.id} className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="flex-1">
-            <div className="flex items-center gap-2 text-xs text-base-400">
-              <span>#{index + 1}</span>
-              {song.key && <Badge>Tom {song.key}</Badge>}
-              {song.moments[0] && <Badge>{song.moments[0]}</Badge>}
-            </div>
-            <h3 className="mt-1 text-base font-semibold text-base-50">{song.title}</h3>
-            {song.artist && <p className="text-sm text-base-400">{song.artist}</p>}
+      {results.map(({ song, compatibility, reasons }) => (
+        <Card key={song.id} className="flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <Badge tone={scoreTone(compatibility)} className="text-sm">
+              {compatibility}% compatível
+            </Badge>
+          </div>
 
-            <ul className="mt-3 flex flex-col gap-1">
+          <div>
+            <h3 className="text-base font-semibold leading-snug text-base-50">{song.title}</h3>
+            {song.artist && <p className="text-sm text-base-400">{song.artist}</p>}
+          </div>
+
+          {reasons.length > 0 && (
+            <ul className="flex flex-col gap-1.5">
               {reasons.map((reason, i) => (
                 <li
                   key={i}
                   className={cn(
-                    "flex items-start gap-1.5 text-xs",
+                    "flex items-start gap-1.5 text-[13px] leading-snug",
                     reason.kind === "positive" ? "text-base-300" : "text-amber-400"
                   )}
                 >
-                  <span>{reason.kind === "positive" ? "✓" : "⚠"}</span>
+                  <span className="shrink-0">{reason.kind === "positive" ? "✓" : "⚠"}</span>
                   <span>{reason.text}</span>
                 </li>
               ))}
             </ul>
-          </div>
+          )}
 
-          <div className="flex shrink-0 flex-col items-end gap-3">
-            <div className="flex flex-col items-end">
-              <Badge tone={scoreTone(compatibility)} className="text-sm">
-                {compatibility}% compatível
-              </Badge>
+          {(song.key || song.moments[0]) && (
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-base-400">
+              {song.key && <span>Tom {song.key}</span>}
+              {song.key && song.moments[0] && <span aria-hidden>•</span>}
+              {song.moments[0] && <span>{song.moments[0]}</span>}
             </div>
-            <div className="flex gap-2">
-              {secondaryActionLabel && onSecondaryAction && (
-                <button
-                  type="button"
-                  onClick={() => onSecondaryAction(song)}
-                  className="rounded-lg border border-base-700 px-3 py-1.5 text-xs font-medium text-base-300 hover:bg-base-800"
-                >
-                  {secondaryActionLabel}
-                </button>
-              )}
+          )}
+
+          {(primaryActionLabel || secondaryActionLabel) && (
+            <div className="flex flex-col gap-2 pt-1 sm:flex-row-reverse sm:justify-start">
               {primaryActionLabel && onPrimaryAction && (
                 <button
                   type="button"
                   onClick={() => onPrimaryAction(song)}
-                  className="rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-accent-fg hover:bg-accent/90"
+                  className="min-h-[44px] w-full rounded-lg bg-accent px-4 text-sm font-medium text-accent-fg hover:bg-accent/90 sm:w-auto"
                 >
                   {primaryActionLabel}
                 </button>
               )}
+              {secondaryActionLabel && onSecondaryAction && (
+                <button
+                  type="button"
+                  onClick={() => onSecondaryAction(song)}
+                  className="min-h-[44px] w-full rounded-lg border border-base-700 px-4 text-sm font-medium text-base-300 hover:bg-base-800 sm:w-auto"
+                >
+                  {secondaryActionLabel}
+                </button>
+              )}
             </div>
-          </div>
+          )}
         </Card>
       ))}
     </div>

@@ -20,10 +20,12 @@ const config: Config = {
           100: "#e9e9ee",
           50: "#f7f7f9",
         },
+        // Identidade Método Louvor Pronto: preto/grafite + dourado accent.
         accent: {
-          DEFAULT: "#6ee7b7",
-          muted: "#3fae87",
-          fg: "#062e22",
+          DEFAULT: "#D4AF37",
+          light: "#E7C765",
+          muted: "#9C7A1F",
+          fg: "#1A1408",
         },
       },
       fontFamily: {

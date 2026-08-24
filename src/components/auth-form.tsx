@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { track } from "@/lib/analytics/track";
+import { friendlyAuthError } from "@/lib/auth/friendlyError";
 
 interface AuthFormProps {
   mode: "login" | "signup";
@@ -24,34 +25,40 @@ export function AuthForm({ mode }: AuthFormProps) {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    const supabase = createClient();
 
-    if (mode === "signup") {
-      const { data, error: signUpError } = await supabase.auth.signUp({ email, password });
-      if (signUpError) {
-        setError(signUpError.message);
-        setLoading(false);
-        return;
-      }
-      track("signup", { method: "password" });
+    try {
+      const supabase = createClient();
 
-      // Se a confirmação de email estiver habilitada no projeto Supabase, ainda não há sessão aqui.
-      if (!data.session) {
-        setLoading(false);
-        setConfirmEmailSent(true);
-        return;
+      if (mode === "signup") {
+        const { data, error: signUpError } = await supabase.auth.signUp({ email, password });
+        if (signUpError) {
+          setError(friendlyAuthError(signUpError, "signup"));
+          setLoading(false);
+          return;
+        }
+        track("signup", { method: "password" });
+
+        // Se a confirmação de email estiver habilitada no projeto Supabase, ainda não há sessão aqui.
+        if (!data.session) {
+          setLoading(false);
+          setConfirmEmailSent(true);
+          return;
+        }
+      } else {
+        const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+        if (signInError) {
+          setError(friendlyAuthError(signInError, "login"));
+          setLoading(false);
+          return;
+        }
       }
-    } else {
-      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-      if (signInError) {
-        setError(signInError.message);
-        setLoading(false);
-        return;
-      }
+
+      router.push("/buscar");
+      router.refresh();
+    } catch (err) {
+      setError(friendlyAuthError(err, mode));
+      setLoading(false);
     }
-
-    router.push("/buscar");
-    router.refresh();
   }
 
   async function handleMagicLink() {
@@ -61,17 +68,22 @@ export function AuthForm({ mode }: AuthFormProps) {
     }
     setLoading(true);
     setError(null);
-    const supabase = createClient();
-    const { error: otpError } = await supabase.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
-    });
-    setLoading(false);
-    if (otpError) {
-      setError(otpError.message);
-      return;
+    try {
+      const supabase = createClient();
+      const { error: otpError } = await supabase.auth.signInWithOtp({
+        email,
+        options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+      });
+      setLoading(false);
+      if (otpError) {
+        setError(friendlyAuthError(otpError, "magic-link"));
+        return;
+      }
+      setMagicLinkSent(true);
+    } catch (err) {
+      setLoading(false);
+      setError(friendlyAuthError(err, "magic-link"));
     }
-    setMagicLinkSent(true);
   }
 
   if (magicLinkSent) {
@@ -116,7 +128,11 @@ export function AuthForm({ mode }: AuthFormProps) {
         />
       </div>
 
-      {error && <p className="text-sm text-red-400">{error}</p>}
+      {error && (
+        <p role="alert" className="text-sm text-red-400">
+          {error}
+        </p>
+      )}
 
       <Button type="submit" disabled={loading}>
         {loading ? "Aguarde…" : mode === "signup" ? "Criar conta grátis" : "Entrar"}

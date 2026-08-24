@@ -29,7 +29,7 @@ export function SongRequestButton({ query }: { query: string }) {
       type="button"
       onClick={handleRequest}
       disabled={status === "sending"}
-      className="mt-2 rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-accent-fg hover:bg-accent/90 disabled:opacity-60"
+      className="mt-2 min-h-[44px] w-full rounded-lg bg-accent px-4 text-sm font-medium text-accent-fg hover:bg-accent/90 disabled:opacity-60 sm:w-auto"
     >
       {status === "sending" ? "Enviando…" : "Solicitar música"}
     </button>

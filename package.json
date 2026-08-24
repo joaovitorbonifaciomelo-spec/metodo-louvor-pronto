@@ -13,7 +13,8 @@
     "audit:catalog": "tsx scripts/audit-seed-catalog.ts",
     "generate:seed-csv": "tsx scripts/generate-seed-csv.ts",
     "seed": "tsx scripts/seed-dev.ts",
-    "import:csv": "tsx scripts/import-songs-csv.ts"
+    "import:csv": "tsx scripts/import-songs-csv.ts",
+    "process:brand-assets": "node scripts/process-brand-assets.js"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.2",
@@ -21,6 +22,7 @@
     "next": "14.2.35",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "sharp": "^0.35.3",
     "zod": "^3.23.8"
   },
   "devDependencies": {

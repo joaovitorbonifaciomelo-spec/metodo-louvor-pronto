@@ -2,8 +2,12 @@ import { forwardRef } from "react";
 import type { InputHTMLAttributes, SelectHTMLAttributes, TextareaHTMLAttributes } from "react";
 import { cn } from "@/lib/utils";
 
+// min-h-[44px] garante touch target confortável mesmo quando um py-* extra
+// é passado via className (dois utilitários py-* concorrentes têm ordem de
+// cascata imprevisível no Tailwind — min-h evita depender disso).
+// text-base (16px): abaixo disso o iOS Safari dá zoom automático ao focar o campo.
 const FIELD_CLASSES =
-  "w-full rounded-xl border border-base-700 bg-base-900 px-3.5 py-2.5 text-sm text-base-100 placeholder:text-base-400 outline-none transition-colors focus:border-accent/60 focus:ring-1 focus:ring-accent/40 disabled:opacity-50";
+  "w-full min-h-[44px] rounded-xl border border-base-700 bg-base-900 px-3.5 py-2.5 text-base text-base-100 placeholder:text-base-400 outline-none transition-colors focus:border-accent/60 focus:ring-1 focus:ring-accent/40 disabled:opacity-50";
 
 export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(
   ({ className, ...props }, ref) => (

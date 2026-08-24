@@ -63,7 +63,7 @@ export function SongAutocomplete({
           onFocus={() => results.length > 0 && setOpen(true)}
           placeholder={placeholder}
           autoFocus={autoFocus}
-          className="py-3.5 text-base"
+          className="py-3.5"
         />
         {loading && (
           <div className="absolute right-3.5 top-1/2 -translate-y-1/2 text-base-400">
@@ -73,19 +73,19 @@ export function SongAutocomplete({
       </div>
 
       {open && results.length > 0 && (
-        <ul className="absolute z-20 mt-2 w-full overflow-hidden rounded-xl border border-base-700 bg-base-850 shadow-xl">
+        <ul className="scrollbar-thin absolute z-20 mt-2 max-h-[60vh] w-full overflow-y-auto overscroll-contain rounded-xl border border-base-700 bg-base-850 shadow-xl">
           {results.map((song) => (
             <li key={song.id}>
               <button
                 type="button"
-                className="flex w-full flex-col items-start gap-0.5 px-4 py-2.5 text-left transition-colors hover:bg-base-800"
+                className="flex min-h-[56px] w-full flex-col items-start justify-center gap-0.5 px-4 py-3 text-left transition-colors active:bg-base-800 sm:hover:bg-base-800"
                 onClick={() => {
                   onSelect(song);
                   setQuery(song.title);
                   setOpen(false);
                 }}
               >
-                <span className="text-sm font-medium text-base-100">{song.title}</span>
+                <span className="text-[15px] font-medium text-base-100">{song.title}</span>
                 {song.artist && <span className="text-xs text-base-400">{song.artist}</span>}
               </button>
             </li>
