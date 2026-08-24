@@ -161,12 +161,18 @@ Preencha com os dados do seu projeto Supabase (**Project Settings → API**):
 
 ```
 NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_ANON_KEY=
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
 ```
 
+> O nome da chave pública mudou entre projetos Supabase mais novos/antigos
+> ("Publishable key" vs. "anon public"). O app aceita as duas variáveis —
+> `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` tem prioridade se ambas existirem
+> (ver `src/lib/supabase/env.ts`).
+
 > Sem essas variáveis, o app builda e roda normalmente, mas qualquer chamada
-> ao Supabase falha com um erro de conexão tratado na UI — não há crash.
+> ao Supabase falha (erro de conexão logado no console, nunca escondido) —
+> não há crash silencioso.
 
 ### 4. Rodar as migrations
 
@@ -236,8 +242,25 @@ runtime).
 
 1. Suba o repositório para o GitHub.
 2. Importe o projeto na [Vercel](https://vercel.com/new).
-3. Configure as env vars do `.env.example` no painel da Vercel.
-4. Deploy. O middleware (`middleware.ts`) já cuida do refresh de sessão do Supabase Auth.
+3. Configure em **Project Settings → Environment Variables** (Production **e** Preview),
+   marcadas como **Non-sensitive** (variáveis `NEXT_PUBLIC_*` não podem ser "Sensitive"
+   na Vercel — o valor precisa poder ser lido de volta e embutido no bundle do client):
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (ou `NEXT_PUBLIC_SUPABASE_ANON_KEY` — o
+     app aceita qualquer um dos dois nomes, ver `src/lib/supabase/env.ts`)
+   - `NEXT_PUBLIC_SITE_URL` = URL de produção (ex.: `https://seu-projeto.vercel.app`)
+   - `SUPABASE_SERVICE_ROLE_KEY` (opcional — nenhuma rota da aplicação usa hoje;
+     só é necessária se algum script/rota admin passar a precisar dela)
+4. No painel do Supabase, em **Authentication → URL Configuration**, defina:
+   - **Site URL**: a mesma URL de produção acima
+   - **Redirect URLs**: `https://seu-projeto.vercel.app/**` e `http://localhost:3000/**`
+   
+   Sem isso, confirmação de email e magic link não redirecionam corretamente em produção.
+5. Deploy. O middleware (`middleware.ts`) já cuida do refresh de sessão do Supabase Auth.
+
+**Diagnóstico**: se o signup/login falhar com "Failed to fetch" em produção, é
+quase sempre env var ausente/incorreta na Vercel — o servidor loga no console
+(nunca o valor, só o nome da variável faltando) via `src/lib/supabase/env.ts`.
 
 ## Billing (seção 26)
 
