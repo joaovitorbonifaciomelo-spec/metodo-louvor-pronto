@@ -205,7 +205,7 @@ export function NovoCultoClient() {
               <ol className="flex flex-col gap-2">
                 {variant.items.map((item, index) => (
                   <li key={index} className="text-sm">
-                    <span className="text-base-500">{String(index + 1).padStart(2, "0")} — </span>
+                    <span className="text-base-400">{String(index + 1).padStart(2, "0")} — </span>
                     <span className="font-medium text-base-100">{item.song.title}</span>
                     <span className="ml-2 text-xs text-base-400">
                       {item.moment}

@@ -37,7 +37,7 @@ export default function LandingPage() {
         <DiscoverDemo />
       </section>
 
-      <footer className="w-full max-w-5xl px-4 pb-10 text-center text-xs text-base-500 sm:px-6">
+      <footer className="w-full max-w-5xl px-4 pb-10 text-center text-xs text-base-400 sm:px-6">
         {product.name} — {new Date().getFullYear()}
       </footer>
     </main>

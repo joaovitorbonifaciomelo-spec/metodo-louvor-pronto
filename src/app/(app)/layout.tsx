@@ -32,7 +32,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               Novo Culto
             </Link>
           </nav>
-          <div className="hidden items-center gap-3 text-xs text-base-500 sm:flex">
+          <div className="hidden items-center gap-3 text-xs text-base-400 sm:flex">
             <span className="max-w-[160px] truncate">{email}</span>
             <SignOutButton />
           </div>

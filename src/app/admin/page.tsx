@@ -36,7 +36,7 @@ export default async function AdminDashboardPage() {
               {stats.topSearches.map((s) => (
                 <li key={s.query} className="flex justify-between">
                   <span>{s.query}</span>
-                  <span className="text-base-500">{s.count}</span>
+                  <span className="text-base-400">{s.count}</span>
                 </li>
               ))}
             </ol>
@@ -52,7 +52,7 @@ export default async function AdminDashboardPage() {
               {stats.topRequests.map((r) => (
                 <li key={r.query} className="flex justify-between">
                   <span>{r.query}</span>
-                  <span className="text-base-500">{r.count}</span>
+                  <span className="text-base-400">{r.count}</span>
                 </li>
               ))}
             </ol>
@@ -70,7 +70,7 @@ export default async function AdminDashboardPage() {
                   <span>
                     {s.title} {s.artist ? `— ${s.artist}` : ""}
                   </span>
-                  <span className="text-base-500">{s.count}</span>
+                  <span className="text-base-400">{s.count}</span>
                 </li>
               ))}
             </ol>

@@ -29,7 +29,7 @@ export default async function PublicSetlistPage({ params }: { params: { slug: st
       <div className="flex flex-col gap-3">
         {items.map((item, index) => (
           <Card key={item.id}>
-            <span className="text-xs text-base-500">
+            <span className="text-xs text-base-400">
               {String(index + 1).padStart(2, "0")} — {item.moment}
             </span>
             <h2 className="text-base font-semibold text-base-50">{item.song.title}</h2>

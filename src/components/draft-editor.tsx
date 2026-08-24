@@ -79,7 +79,7 @@ export function DraftEditor({ draft, setDraft, onAddSong, onRegenerate, onSave, 
           <Card key={item.tempId} className="flex flex-col gap-3">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <span className="text-xs text-base-500">
+                <span className="text-xs text-base-400">
                   {String(index + 1).padStart(2, "0")} — {item.moment}
                 </span>
                 <h3 className="text-base font-semibold text-base-50">{item.song.title}</h3>

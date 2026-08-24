@@ -138,7 +138,7 @@ export function AuthForm({ mode }: AuthFormProps) {
         {loading ? "Aguarde…" : mode === "signup" ? "Criar conta grátis" : "Entrar"}
       </Button>
 
-      <div className="flex items-center gap-3 text-xs text-base-500">
+      <div className="flex items-center gap-3 text-xs text-base-400">
         <div className="h-px flex-1 bg-base-800" />
         ou
         <div className="h-px flex-1 bg-base-800" />
