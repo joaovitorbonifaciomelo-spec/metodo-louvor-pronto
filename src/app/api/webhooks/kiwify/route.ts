@@ -12,6 +12,7 @@ import {
   parseKiwifyWebhook,
   type ParsedKiwifyWebhook,
 } from "@/lib/billing/kiwify";
+import { fetchKiwifySale } from "@/lib/billing/kiwifyApi";
 import type { SubscriptionRow } from "@/types/database";
 
 /**
@@ -23,9 +24,15 @@ import type { SubscriptionRow } from "@/types/database";
  * subscription_late, subscription_canceled, order_refunded, chargeback) e a
  * estrutura completa do payload já foram CONFIRMADOS por inspeção de
  * payloads de teste reais enviados pela própria Kiwify — ver
- * src/lib/billing/kiwify.ts para o mapeamento e as ressalvas sobre o que
- * ainda NÃO está confirmado (mecanismo de autenticação — `isAuthentic`
- * permanece incapaz de validar de verdade até isso ser resolvido).
+ * src/lib/billing/kiwify.ts para o mapeamento.
+ *
+ * Autenticação: como o mecanismo de `?signature=` continua NÃO CONFIRMADO
+ * (`isAuthentic` permanece incapaz de validar), a defesa real contra webhooks
+ * forjados é a VERIFICAÇÃO SERVER-TO-SERVER em src/lib/billing/kiwifyApi.ts —
+ * antes de alterar qualquer `subscriptions`, confirmamos com nossas próprias
+ * credenciais OAuth que o `order_id` do webhook realmente existe na nossa
+ * conta Kiwify e pertence ao produto configurado (KIWIFY_PRODUCT_ID). Um
+ * corpo de webhook forjado não passa por essa verificação.
  */
 export async function POST(request: Request) {
   const rawText = await request.text();
@@ -78,13 +85,7 @@ export async function POST(request: Request) {
   try {
     const targetStatus = mapKiwifyEventToSubscriptionStatus(parsed.eventType);
     if (targetStatus) {
-      if (isAllowedKiwifyProduct(parsed.productId)) {
-        await applySubscriptionEvent(supabase, targetStatus, parsed);
-      } else {
-        console.warn(
-          `[kiwify webhook] product_id="${parsed.productId}" não corresponde a KIWIFY_PRODUCT_ID — evento "${parsed.eventType}" ignorado (subscriptions não alteradas).`
-        );
-      }
+      await verifyAndApplySubscriptionEvent(supabase, targetStatus, parsed);
     }
     if (inserted) {
       await supabase.from("webhook_events").update({ processed_at: new Date().toISOString() }).eq("id", inserted.id);
@@ -152,6 +153,49 @@ async function findUserIdByEmail(
   const { data, error } = await supabase.auth.admin.listUsers({ page: 1, perPage: 200 });
   if (error) return null;
   return matchUserIdByEmail(data.users, email);
+}
+
+/**
+ * Verifica a venda via API oficial da Kiwify (server-to-server, credenciais
+ * nossas) ANTES de tocar em `subscriptions` — nunca confia só no corpo do
+ * webhook. Só aplica o evento se:
+ *   1. o evento trouxer um order_id (todos os 6 eventos confirmados trazem);
+ *   2. GET /v1/sales/{order_id} confirmar que essa venda existe na nossa
+ *      conta (null = não configurado ou não encontrada — nunca tratado como
+ *      "encontrada por padrão");
+ *   3. o product_id RETORNADO PELA KIWIFY (não o que veio no corpo do
+ *      webhook) corresponder a KIWIFY_PRODUCT_ID.
+ * Qualquer falha aqui só loga e não altera `subscriptions` — o evento já
+ * ficou registrado em webhook_events para auditoria.
+ */
+async function verifyAndApplySubscriptionEvent(
+  supabase: ReturnType<typeof createAdminClient>,
+  targetStatus: NonNullable<ReturnType<typeof mapKiwifyEventToSubscriptionStatus>>,
+  parsed: ParsedKiwifyWebhook
+) {
+  if (!parsed.orderId) {
+    console.warn(
+      `[kiwify webhook] evento "${parsed.eventType}" sem order_id — não é possível verificar server-to-server, ignorado.`
+    );
+    return;
+  }
+
+  const verifiedSale = await fetchKiwifySale(parsed.orderId);
+  if (!verifiedSale) {
+    console.warn(
+      `[kiwify webhook] order_id="${parsed.orderId}" não confirmado pela API oficial da Kiwify (venda inexistente ou API não configurada) — evento "${parsed.eventType}" ignorado.`
+    );
+    return;
+  }
+
+  if (!isAllowedKiwifyProduct(verifiedSale.productId)) {
+    console.warn(
+      `[kiwify webhook] venda confirmada (order_id="${parsed.orderId}") mas de outro produto (product_id="${verifiedSale.productId}") — evento "${parsed.eventType}" ignorado.`
+    );
+    return;
+  }
+
+  await applySubscriptionEvent(supabase, targetStatus, parsed);
 }
 
 /**
