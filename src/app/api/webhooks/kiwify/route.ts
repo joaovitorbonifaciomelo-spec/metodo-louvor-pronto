@@ -1,35 +1,40 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
-  EVENT_TO_STATUS,
   buildIdempotencyKey,
   buildInspectionRecord,
   extractEventType,
-  extractOrderInfo,
+  isAllowedKiwifyProduct,
   isAuthentic,
   isInspectionMode,
+  mapKiwifyEventToSubscriptionStatus,
   matchUserIdByEmail,
+  parseKiwifyWebhook,
+  type ParsedKiwifyWebhook,
 } from "@/lib/billing/kiwify";
 import type { SubscriptionRow } from "@/types/database";
 
 /**
  * Webhook de pagamento da Kiwify (seção "Fluxo comercial"). Único lugar que
  * pode conceder/revogar acesso pago — o app NUNCA libera acesso só porque o
- * navegador voltou do checkout. Ver src/lib/billing/kiwify.ts para o que já
- * foi CONFIRMADO por inspeção de um payload de teste real (evento
- * "order_approved", estrutura de Product/Customer/Subscription) vs. o que
- * ainda não foi observado (os outros 5 eventos) ou não está confirmado
- * (mecanismo de autenticação — `isAuthentic` permanece incapaz de validar de
- * verdade até isso ser resolvido).
+ * navegador voltou do checkout.
+ *
+ * Os 6 eventos de assinatura relevantes (order_approved, subscription_renewed,
+ * subscription_late, subscription_canceled, order_refunded, chargeback) e a
+ * estrutura completa do payload já foram CONFIRMADOS por inspeção de
+ * payloads de teste reais enviados pela própria Kiwify — ver
+ * src/lib/billing/kiwify.ts para o mapeamento e as ressalvas sobre o que
+ * ainda NÃO está confirmado (mecanismo de autenticação — `isAuthentic`
+ * permanece incapaz de validar de verdade até isso ser resolvido).
  */
 export async function POST(request: Request) {
   const rawText = await request.text();
 
   // Modo de inspeção (KIWIFY_WEBHOOK_INSPECT=true): registra a entrega
   // completa (headers + query + body) sem verificar token e sem tocar em
-  // `subscriptions` — usado só para descobrir o mecanismo real de
-  // autenticação da Kiwify antes de confiar em `isAuthentic`. Nunca concede
-  // acesso. Ver README/relatório da sessão para como desligar depois do teste.
+  // `subscriptions` — usado para descobrir o mecanismo real de autenticação
+  // da Kiwify e a estrutura de cada evento antes de confiar em `isAuthentic`.
+  // Nunca concede acesso. NÃO desligar até a autenticação estar confirmada.
   if (isInspectionMode()) {
     return handleInspection(request, rawText);
   }
@@ -50,15 +55,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Payload inválido (JSON esperado)." }, { status: 400 });
   }
 
-  const eventType = extractEventType(body) ?? "unknown";
-  const info = extractOrderInfo(body);
-  const idempotencyKey = buildIdempotencyKey(eventType, info) ?? `sem-id:${crypto.randomUUID()}`;
+  const parsed = parseKiwifyWebhook(body);
+  const idempotencyKey = buildIdempotencyKey(parsed) ?? `sem-id:${crypto.randomUUID()}`;
 
   const supabase = createAdminClient();
 
   const { data: inserted, error: logError } = await supabase
     .from("webhook_events")
-    .insert({ provider: "kiwify", event_type: eventType, idempotency_key: idempotencyKey, raw_payload: body })
+    .insert({ provider: "kiwify", event_type: parsed.eventType, idempotency_key: idempotencyKey, raw_payload: body })
     .select("id")
     .maybeSingle();
 
@@ -72,8 +76,15 @@ export async function POST(request: Request) {
   }
 
   try {
-    if (EVENT_TO_STATUS[eventType]) {
-      await applySubscriptionEvent(supabase, eventType, info);
+    const targetStatus = mapKiwifyEventToSubscriptionStatus(parsed.eventType);
+    if (targetStatus) {
+      if (isAllowedKiwifyProduct(parsed.productId)) {
+        await applySubscriptionEvent(supabase, targetStatus, parsed);
+      } else {
+        console.warn(
+          `[kiwify webhook] product_id="${parsed.productId}" não corresponde a KIWIFY_PRODUCT_ID — evento "${parsed.eventType}" ignorado (subscriptions não alteradas).`
+        );
+      }
     }
     if (inserted) {
       await supabase.from("webhook_events").update({ processed_at: new Date().toISOString() }).eq("id", inserted.id);
@@ -94,10 +105,10 @@ export async function POST(request: Request) {
 
 /**
  * Registra a entrega crua do webhook (headers, query, body) para descobrir o
- * mecanismo real de token/assinatura da Kiwify. Nunca chama
- * applySubscriptionEvent — nenhuma assinatura é criada/alterada aqui, mesmo
- * que o payload pareça um evento real. Sempre responde 200 (a Kiwify só
- * precisa ver sucesso para marcar o teste como concluído).
+ * mecanismo real de autenticação da Kiwify e a estrutura de cada evento.
+ * Nunca chama applySubscriptionEvent — nenhuma assinatura é criada/alterada
+ * aqui, mesmo que o payload pareça um evento real. Sempre responde 200 (a
+ * Kiwify só precisa ver sucesso para marcar o teste como concluído).
  */
 async function handleInspection(request: Request, rawText: string) {
   const record = buildInspectionRecord(request, rawText);
@@ -143,73 +154,69 @@ async function findUserIdByEmail(
   return matchUserIdByEmail(data.users, email);
 }
 
-type EventInfo = ReturnType<typeof extractOrderInfo>;
-
 /**
- * Aplica um evento que já sabemos alterar status (EVENT_TO_STATUS[eventType]
- * existe) a uma linha de `subscriptions`. Se o usuário comprador ainda não
- * tiver conta no Supabase, a linha é criada/atualizada mesmo assim com
- * `user_id = null` e `customer_email` preenchido — o webhook nunca é
- * descartado por falta de conta; a vinculação acontece depois (ver seção
- * "vincular compra ao usuário").
+ * Aplica um evento de assinatura já mapeado para `targetStatus` (ver
+ * mapKiwifyEventToSubscriptionStatus) a uma linha de `subscriptions`.
+ * `webhook_event_type` decide o status sozinho — `Subscription.status` do
+ * payload NUNCA é consultado aqui para essa decisão (ver ressalva em
+ * EVENT_TO_STATUS: chargeback pode chegar com Subscription.status="active" e
+ * mesmo assim o resultado tem que ser "chargeback").
+ *
+ * Localiza a assinatura por `provider_subscription_id` — uma renovação
+ * (subscription_renewed) da MESMA assinatura atualiza a mesma linha, nunca
+ * cria uma nova. Se o comprador ainda não tiver conta no Supabase, a linha é
+ * criada/atualizada mesmo assim com `user_id = null` e `customer_email`
+ * preenchido — o webhook nunca é descartado por falta de conta.
  */
 async function applySubscriptionEvent(
   supabase: ReturnType<typeof createAdminClient>,
-  eventType: string,
-  info: EventInfo
+  targetStatus: NonNullable<ReturnType<typeof mapKiwifyEventToSubscriptionStatus>>,
+  parsed: ParsedKiwifyWebhook
 ) {
-  const targetStatus = EVENT_TO_STATUS[eventType];
-  if (!targetStatus) return;
-
-  // Guarda específica do order_approved: só confiamos no status "active" se o
-  // próprio payload confirmar Subscription.status === "active". Um
-  // order_approved com outro valor aí é uma combinação nunca observada — não
-  // inventamos o que fazer, só registramos o alerta e não mexemos no status
-  // (os demais campos do evento ainda são salvos normalmente abaixo).
-  const statusConfirmedByPayload = eventType !== "order_approved" || info.subscriptionStatus === "active";
-  if (!statusConfirmedByPayload) {
-    console.warn(
-      `[kiwify webhook] order_approved com Subscription.status="${info.subscriptionStatus}" (esperado "active") — não atualizando status automaticamente.`
-    );
-  }
-
   const now = new Date().toISOString();
 
   let existing: SubscriptionRow | null = null;
-  if (info.subscriptionId) {
+  if (parsed.subscriptionId) {
     const { data } = await supabase
       .from("subscriptions")
       .select("*")
       .eq("provider", "kiwify")
-      .eq("provider_subscription_id", info.subscriptionId)
+      .eq("provider_subscription_id", parsed.subscriptionId)
       .maybeSingle();
     existing = (data as unknown as SubscriptionRow) ?? null;
   }
 
-  const userId = existing?.user_id ?? (await findUserIdByEmail(supabase, info.customerEmail));
+  const userId = existing?.user_id ?? (await findUserIdByEmail(supabase, parsed.customerEmail));
 
   const update: Partial<SubscriptionRow> & Record<string, unknown> = {
     provider: "kiwify",
+    status: targetStatus,
   };
-  if (statusConfirmedByPayload) update.status = targetStatus;
   if (userId) update.user_id = userId;
-  if (info.customerEmail) update.customer_email = info.customerEmail;
-  if (info.subscriptionId) update.provider_subscription_id = info.subscriptionId;
-  if (info.customerId) update.provider_customer_id = info.customerId;
-  if (info.productId) update.provider_product_id = info.productId;
-  if (info.periodEnd) update.current_period_end = info.periodEnd;
+  if (parsed.customerEmail) update.customer_email = parsed.customerEmail;
+  if (parsed.subscriptionId) update.provider_subscription_id = parsed.subscriptionId;
+  if (parsed.customerId) update.provider_customer_id = parsed.customerId;
+  if (parsed.productId) update.provider_product_id = parsed.productId;
+  // Subscription.next_payment representa o fim do ciclo atual mesmo em
+  // eventos não-"active" (ex.: subscription_canceled ainda traz esse campo,
+  // representando até quando o período já pago vale) — access.ts usa isso
+  // para "canceled_within_paid_period". Só gravamos o que o payload realmente
+  // trouxer; nunca inventamos uma data.
+  if (parsed.currentPeriodEnd) update.current_period_end = parsed.currentPeriodEnd;
 
-  if (statusConfirmedByPayload && targetStatus === "active") {
+  if (targetStatus === "active") {
     update.past_due_since = null;
     update.canceled_at = null;
-    if (!existing?.started_at) update.started_at = info.startedAt ?? now;
-    // Subscription.start_date vale para a 1ª compra (único caso hoje: order_approved).
-    // Revisar quando subscription_renewed for confirmado — provavelmente deve
-    // avançar o período em vez de usar start_date de novo.
-    update.current_period_start = info.startedAt ?? now;
-  } else if (statusConfirmedByPayload && targetStatus === "past_due") {
-    if (!existing?.past_due_since) update.past_due_since = now;
-  } else if (statusConfirmedByPayload && targetStatus === "canceled") {
+    if (!existing?.started_at) update.started_at = parsed.startedAt ?? now;
+    // Subscription.start_date só representa o início do ciclo na 1ª compra
+    // (sem linha existente ainda). Numa renovação (existing != null) não há,
+    // nos payloads reais observados, nenhum campo que represente
+    // especificamente "início do novo ciclo" — por isso não mexemos em
+    // current_period_start numa renovação, só em current_period_end (acima).
+    if (!existing) update.current_period_start = parsed.startedAt ?? now;
+  } else if (targetStatus === "past_due") {
+    if (!existing?.past_due_since) update.past_due_since = parsed.eventOccurredAt ?? now;
+  } else if (targetStatus === "canceled") {
     update.canceled_at = now;
   }
 

@@ -37,27 +37,57 @@ export function isKiwifyEvent(value: unknown): value is KiwifyWebhookTrigger {
 }
 
 /**
- * Valores REAIS de `webhook_event_type` confirmados via inspeção de payload
- * de teste enviado pela própria Kiwify (não documentação, não suposição):
+ * Valores REAIS de `webhook_event_type` — todos os 6 relevantes para
+ * assinatura já foram confirmados via inspeção de payloads de teste enviados
+ * pela própria Kiwify (não documentação, não suposição):
  *
- * - "order_approved"  -> compra aprovada (trigger "compra_aprovada")
- * - "billet_created"  -> boleto gerado (trigger "boleto_gerado") — informativo, não processamos
- *
- * Os outros 5 (reembolso, chargeback, assinatura cancelada/atrasada/renovada)
- * ainda NÃO foram observados — não adivinhar os nomes. Adicionar aqui só
- * depois de confirmar via um teste real na Kiwify (ver modo de inspeção).
+ * - "order_approved"        -> compra aprovada (trigger "compra_aprovada")
+ * - "subscription_renewed"  -> assinatura renovada (trigger "subscription_renewed")
+ * - "subscription_late"     -> assinatura atrasada (trigger "subscription_late")
+ * - "subscription_canceled" -> assinatura cancelada (trigger "subscription_canceled")
+ * - "order_refunded"        -> reembolso (trigger "compra_reembolsada")
+ * - "chargeback"            -> chargeback (trigger "chargeback")
+ * - "billet_created"        -> boleto gerado (trigger "boleto_gerado") — informativo, não processamos
  */
-export const CONFIRMED_WEBHOOK_EVENT_TYPES = ["order_approved", "billet_created"] as const;
+export const CONFIRMED_WEBHOOK_EVENT_TYPES = [
+  "order_approved",
+  "subscription_renewed",
+  "subscription_late",
+  "subscription_canceled",
+  "order_refunded",
+  "chargeback",
+  "billet_created",
+] as const;
 
 /**
  * Eventos que alteram o status de uma assinatura, chaveados pelo valor REAL
- * de `webhook_event_type` (confirmado acima) — não pelos nomes de trigger em
- * português. Só contém o que já foi observado; os demais ficam de fora de
- * propósito até serem confirmados (ver seção "outros 5 eventos").
+ * de `webhook_event_type` — não pelos nomes de trigger em português, e NUNCA
+ * por `Subscription.status` (ver ressalva importante abaixo). Todos os 6
+ * confirmados via inspeção real; nenhum é suposição.
+ *
+ * IMPORTANTE — `Subscription.status` NÃO É CONFIÁVEL para decidir a transição
+ * comercial. Payloads de teste reais mostraram:
+ *   - `chargeback` chegou com `Subscription.status: "active"` (mesmo assim o
+ *     resultado tem que ser "chargeback", nunca "active");
+ *   - `order_refunded` chegou com `Subscription.status: "canceled"` (mesmo
+ *     assim o resultado tem que ser "refunded", nunca "canceled").
+ * Por isso `mapKiwifyEventToSubscriptionStatus`/`applySubscriptionEvent` usam
+ * SOMENTE `webhook_event_type` — `Subscription.status` é guardado só como
+ * dado informativo (`subscriptionStatus` no retorno de `parseKiwifyWebhook`).
  */
 export const EVENT_TO_STATUS: Partial<Record<string, SubscriptionStatus>> = {
   order_approved: "active",
+  subscription_renewed: "active",
+  subscription_late: "past_due",
+  subscription_canceled: "canceled",
+  order_refunded: "refunded",
+  chargeback: "chargeback",
 };
+
+/** Único ponto de tradução evento -> status — nunca repetir EVENT_TO_STATUS[x] em outro lugar. */
+export function mapKiwifyEventToSubscriptionStatus(eventType: string): SubscriptionStatus | null {
+  return EVENT_TO_STATUS[eventType] ?? null;
+}
 
 /**
  * Extrai o token de autenticação da requisição recebida.
@@ -74,19 +104,24 @@ export const EVENT_TO_STATUS: Partial<Record<string, SubscriptionStatus>> = {
  * (https://docs.kiwify.com.br/api-reference/banking/webhook-headers), mas
  * essa página está sob "Banking" (produto de PIX/boleto — o exemplo de URL
  * usado lá é literalmente "/webhooks/kiwibank"), um produto diferente do
- * webhook de pedidos/assinaturas que estamos usando. O payload de teste real
- * que recebemos não teve esses headers relatados. Por isso NÃO implementamos
- * Ed25519 aqui — seria assumir que os dois produtos compartilham mecanismo,
- * o que não está confirmado. Antes de confiar nisso, confira no
- * `webhook_events` já gravado se os headers `x-kiwify-digital-signature` e
- * `x-kiwify-timestamp` realmente vieram na mesma entrega que teve
- * `?signature=` — se sim, o mecanismo Ed25519 pode se aplicar de verdade e
- * dá pra implementar; se não, o mecanismo da `signature` da query string
- * continua 100% NÃO CONFIRMADO.
+ * webhook de pedidos/assinaturas que estamos usando.
  *
- * Enquanto isso não for resolvido, `isAuthentic` abaixo permanece incapaz de
- * validar de verdade (sempre nega) — o endpoint só aceita entregas reais hoje
- * através do modo de inspeção (`isInspectionMode`), que nunca concede acesso.
+ * CONFIRMADO (não mais suspeita) inspecionando os headers reais dos 6 eventos
+ * de teste recebidos: `x-kiwify-digital-signature` e `x-kiwify-timestamp`
+ * NUNCA vieram em nenhuma entrega — só existe o `?signature=` na query
+ * string. Ou seja, o mecanismo Ed25519 do produto Banking NÃO se aplica aqui.
+ *
+ * Também pesquisamos uma referência de terceiro (documentação de um produto
+ * de automação, não da própria Kiwify) citando "SHA-1" para esse parâmetro —
+ * mas sem especificar o que é hasheado, em que ordem, nem qual segredo é
+ * usado. Isso NÃO é uma confirmação oficial da Kiwify, então NÃO
+ * implementamos SHA-1/HMAC algum a partir disso (seria inventar o algoritmo
+ * exato, o que foi explicitamente pedido para não fazer).
+ *
+ * RESULTADO: o mecanismo de cálculo de `signature` permanece 100% NÃO
+ * CONFIRMADO. `isAuthentic` abaixo permanece incapaz de validar de verdade
+ * (sempre nega) — o endpoint só aceita entregas reais hoje através do modo de
+ * inspeção (`isInspectionMode`), que nunca concede acesso.
  */
 export function extractToken(request: Request): string | null {
   const url = new URL(request.url);
@@ -167,12 +202,13 @@ export function buildInspectionRecord(request: Request, rawText: string): Inspec
 }
 
 /**
- * `webhook_event_type` é o campo REAL confirmado por inspeção (payload de
- * teste de "Compra aprovada" trouxe `webhook_event_type: "order_approved"`).
- * Priorizamos exatamente esse campo; os demais candidatos são só fallback de
- * compatibilidade (nunca observados na prática, mantidos por segurança caso
- * algum evento futuro venha num formato diferente). O corpo bruto é sempre
- * gravado em webhook_events.raw_payload, então nada se perde de qualquer forma.
+ * `webhook_event_type` é o campo REAL confirmado por inspeção — presente e
+ * confiável em todos os 6 eventos de assinatura observados (order_approved,
+ * subscription_renewed, subscription_late, subscription_canceled,
+ * order_refunded, chargeback). Priorizamos exatamente esse campo; os demais
+ * candidatos são só fallback de compatibilidade (nunca observados na
+ * prática). O corpo bruto é sempre gravado em webhook_events.raw_payload,
+ * então nada se perde de qualquer forma.
  */
 export function extractEventType(body: Record<string, unknown>): string | null {
   const candidate =
@@ -189,6 +225,7 @@ interface ExtractedOrderInfo {
   subscriptionStatus: string | null;
   startedAt: string | null;
   periodEnd: string | null;
+  eventOccurredAt: string | null;
 }
 
 function readString(...values: unknown[]): string | null {
@@ -199,25 +236,25 @@ function readString(...values: unknown[]): string | null {
 }
 
 /**
- * Extração dos campos do payload de `order_approved`, baseada na estrutura
- * REAL observada por inspeção (não mais suposição):
+ * Extração dos campos de payload, baseada na estrutura REAL confirmada por
+ * inspeção — idêntica nos 6 eventos de assinatura observados:
  *
  *   Product.product_id, Product.product_name
  *   Customer.email, Customer.full_name, Customer.first_name, Customer.mobile
  *   order_id, order_ref, order_status
  *   Subscription.id, Subscription.status, Subscription.start_date, Subscription.next_payment
  *   Subscription.plan.{id,name,frequency,qty_charges}
- *   subscription_id (fallback solto, fora de Subscription)
+ *   subscription_id (fallback solto, fora de Subscription — sempre igual a Subscription.id)
+ *   created_at, updated_at (nível raiz, formato "YYYY-MM-DD HH:mm", sem timezone)
+ *
+ * `subscriptionStatus` (Subscription.status) é só INFORMATIVO — nunca usado
+ * para decidir a transição comercial (ver EVENT_TO_STATUS acima).
  *
  * `customerId`/`provider_customer_id`: a estrutura observada NÃO tem nenhum
- * campo de id de cliente (só email/nome/telefone) — por isso NUNCA inventamos
- * um a partir do e-mail; os candidatos abaixo (customer.id/customer_id) ficam
- * só para o caso de outro tipo de evento vir a trazer um id real, e resolvem
- * para null quando ausentes (nunca fabricam um valor).
- *
- * Os outros 5 eventos (reembolso, chargeback, cancelamento, atraso, renovação)
- * ainda não foram observados — esta função pode precisar de ajuste quando
- * confirmarmos a estrutura deles.
+ * campo de id de cliente em NENHUM dos 6 eventos (só email/nome/telefone) —
+ * por isso NUNCA inventamos um a partir do e-mail; os candidatos abaixo
+ * (customer.id/customer_id) resolvem para null quando ausentes, nunca
+ * fabricam um valor.
  */
 export function extractOrderInfo(body: Record<string, unknown>): ExtractedOrderInfo {
   const customer = (body.Customer ?? body.customer ?? {}) as Record<string, unknown>;
@@ -238,11 +275,70 @@ export function extractOrderInfo(body: Record<string, unknown>): ExtractedOrderI
       body.current_period_end,
       body.next_payment
     ),
+    // Quando a Kiwify gerou/atualizou este evento — real (created_at/updated_at
+    // de nível raiz), usado como carimbo de tempo do evento (ex.: past_due_since)
+    // quando não há um campo mais específico para isso.
+    eventOccurredAt: readString(body.updated_at, body.created_at),
   };
 }
 
 function normalizeEmail(email: string | null): string | null {
   return email ? email.trim().toLowerCase() : null;
+}
+
+export interface ParsedKiwifyWebhook {
+  eventType: string;
+  orderId: string | null;
+  subscriptionId: string | null;
+  productId: string | null;
+  customerId: string | null;
+  customerEmail: string | null;
+  /** Subscription.status — informativo; NUNCA usar para decidir status (ver EVENT_TO_STATUS). */
+  subscriptionStatus: string | null;
+  startedAt: string | null;
+  currentPeriodEnd: string | null;
+  eventOccurredAt: string | null;
+}
+
+/**
+ * Parser central único do webhook da Kiwify — todo o resto do código (rota,
+ * testes) deve passar por aqui em vez de chamar extractEventType/
+ * extractOrderInfo separadamente ou espalhar nomes de campo/evento pelo
+ * projeto. Combina `webhook_event_type` (autoritativo para a transição
+ * comercial) com os demais campos confirmados por inspeção real.
+ */
+export function parseKiwifyWebhook(body: Record<string, unknown>): ParsedKiwifyWebhook {
+  const eventType = extractEventType(body) ?? "unknown";
+  const info = extractOrderInfo(body);
+  return {
+    eventType,
+    orderId: info.orderId,
+    subscriptionId: info.subscriptionId,
+    productId: info.productId,
+    customerId: info.customerId,
+    customerEmail: info.customerEmail,
+    subscriptionStatus: info.subscriptionStatus,
+    startedAt: info.startedAt,
+    currentPeriodEnd: info.periodEnd,
+    eventOccurredAt: info.eventOccurredAt,
+  };
+}
+
+/**
+ * Validação de produto (seção "Product validation"): não queremos que
+ * qualquer produto da conta Kiwify libere este SaaS — só o produto
+ * configurado em KIWIFY_PRODUCT_ID. Falha FECHADO: sem a env var configurada,
+ * nenhum produto é considerado válido (nunca libera acesso "por omissão").
+ * NUNCA usar o product_id de um payload de teste como valor de configuração.
+ */
+export function getConfiguredKiwifyProductId(): string | null {
+  return process.env.KIWIFY_PRODUCT_ID || null;
+}
+
+export function isAllowedKiwifyProduct(productId: string | null): boolean {
+  const configured = getConfiguredKiwifyProductId();
+  if (!configured) return false;
+  return productId === configured;
 }
 
 /**
@@ -262,12 +358,18 @@ export function matchUserIdByEmail(
 }
 
 /**
- * Chave de idempotência: preferimos o id do pedido (estável e único por
- * cobrança/evento na prática da Kiwify); sem ele, caímos para subscriptionId;
- * na ausência de qualquer id conhecido, não há como garantir idempotência
- * (retorna null e o chamador deve tratar como não-idempotente/registrar só o log).
+ * Chave de idempotência: eventType + order_id (cada cobrança/evento real
+ * confirmado por inspeção sempre trouxe um order_id próprio — inclusive
+ * `subscription_renewed`, que gera um order_id NOVO a cada renovação). Por
+ * isso order_id, não subscriptionId, é o identificador preferido: usar só
+ * `eventType + subscriptionId` faria duas renovações distintas da MESMA
+ * assinatura colidirem na mesma chave (subscriptionId não muda entre
+ * renovações), tratando incorretamente a segunda como duplicata da primeira.
+ * Sem order_id, caímos para subscriptionId (idempotência mais fraca, mas
+ * ainda evita duplicar um mesmo evento reenviado); sem nenhum id conhecido,
+ * retorna null e o chamador trata como não-idempotente (só loga).
  */
-export function buildIdempotencyKey(eventType: string, info: ExtractedOrderInfo): string | null {
-  const id = info.orderId ?? info.subscriptionId;
-  return id ? `${eventType}:${id}` : null;
+export function buildIdempotencyKey(parsed: Pick<ParsedKiwifyWebhook, "eventType" | "orderId" | "subscriptionId">): string | null {
+  const id = parsed.orderId ?? parsed.subscriptionId;
+  return id ? `${parsed.eventType}:${id}` : null;
 }

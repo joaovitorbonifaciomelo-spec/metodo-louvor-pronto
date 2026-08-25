@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { getSubscriptionAccessStatus } from "@/lib/billing/access";
+import { resolveAccess } from "@/lib/billing/access";
 import { Badge, Card } from "@/components/ui/card";
 import { formatDatePtBr } from "@/lib/utils";
 import type { ProfileRow, SubscriptionRow } from "@/types/database";
@@ -17,10 +17,15 @@ export default async function UsuariosPage() {
 
   const profiles = (profileData ?? []) as ProfileRow[];
   const subscriptions = (subscriptionData ?? []) as SubscriptionRow[];
-  // A mais recente por usuário — a lista já vem ordenada por updated_at desc.
-  const latestSubscriptionByUser = new Map<string, SubscriptionRow>();
+  // Todas as assinaturas por usuário (não só a mais recente) — a lista já
+  // vem ordenada por updated_at desc, ordem que resolveAccess usa só como
+  // referência de exibição quando nenhuma delas concede acesso.
+  const subscriptionsByUser = new Map<string, SubscriptionRow[]>();
   for (const s of subscriptions) {
-    if (s.user_id && !latestSubscriptionByUser.has(s.user_id)) latestSubscriptionByUser.set(s.user_id, s);
+    if (!s.user_id) continue;
+    const list = subscriptionsByUser.get(s.user_id) ?? [];
+    list.push(s);
+    subscriptionsByUser.set(s.user_id, list);
   }
 
   return (
@@ -28,8 +33,10 @@ export default async function UsuariosPage() {
       <h1 className="text-xl font-semibold text-base-50">Usuários ({profiles.length})</h1>
       <div className="flex flex-col gap-2">
         {profiles.map((p) => {
-          const subscription = latestSubscriptionByUser.get(p.id) ?? null;
-          const { granted, reason } = getSubscriptionAccessStatus(subscription);
+          // Mesma resolução de acesso usada pelo resto do SaaS (getAccessInfo
+          // em src/lib/auth/session.ts) — concede acesso se QUALQUER
+          // assinatura do usuário for válida agora, não só a mais recente.
+          const { subscription, access } = resolveAccess(p.role, subscriptionsByUser.get(p.id) ?? []);
           return (
             <Card key={p.id} className="flex items-center justify-between">
               <div>
@@ -37,9 +44,9 @@ export default async function UsuariosPage() {
                 <p className="text-xs text-base-400">Desde {formatDatePtBr(p.created_at)}</p>
               </div>
               <div className="flex gap-2">
-                <Badge tone={subscriptionBadgeTone(granted)}>{subscription?.status ?? "sem assinatura"}</Badge>
-                {!granted && p.role !== "admin" && (
-                  <span className="text-xs text-base-500" title={reason}>
+                <Badge tone={subscriptionBadgeTone(access.granted)}>{subscription?.status ?? "sem assinatura"}</Badge>
+                {!access.granted && p.role !== "admin" && (
+                  <span className="text-xs text-base-500" title={access.reason}>
                     sem acesso
                   </span>
                 )}
