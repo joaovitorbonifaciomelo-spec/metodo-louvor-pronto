@@ -91,6 +91,13 @@ export interface WebhookEventRow {
   processing_error: string | null;
 }
 
+/** Linha única (id=1) usada pelo heartbeat diário (Vercel Cron) — mantém o
+ * projeto Supabase Free ativo. Nunca acumula linhas: sempre UPSERT em id=1. */
+export interface SystemHeartbeatRow {
+  id: number;
+  last_seen: string;
+}
+
 export interface AnalyticsEventRow {
   id: string;
   user_id: string | null;
@@ -148,6 +155,11 @@ export interface Database {
         Row: AnalyticsEventRow;
         Insert: Partial<AnalyticsEventRow> & { event_name: string };
         Update: Partial<AnalyticsEventRow>;
+      };
+      system_heartbeat: {
+        Row: SystemHeartbeatRow;
+        Insert: Partial<SystemHeartbeatRow> & { id: number };
+        Update: Partial<SystemHeartbeatRow>;
       };
     };
   };

@@ -62,6 +62,7 @@ Migrations em `supabase/migrations/`, aplicadas em ordem:
 | `0004_functions_and_triggers.sql` | `updated_at` automático + criação de profile no signup |
 | `0005_catalog_enrichment.sql` | `review_required` + metadados de enriquecimento via YouTube |
 | `0006_billing_subscriptions.sql` | remove o modelo Free/Pro; `subscriptions` passa a modelar status de assinatura real (Kiwify) + `webhook_events` para idempotência |
+| `0007_system_heartbeat.sql` | `system_heartbeat` — linha única (id=1) usada pelo heartbeat diário (Vercel Cron) para manter o projeto Supabase Free ativo |
 
 Tabelas principais:
 
@@ -76,6 +77,7 @@ user_song_library    — músicas que o usuário/igreja já toca
 subscriptions        — status real de assinatura (inactive/active/past_due/canceled/refunded/chargeback)
 webhook_events       — log + idempotência dos webhooks de pagamento recebidos
 analytics_events      — eventos internos (seção 36)
+system_heartbeat     — linha única (id=1), atualizada 1x/dia pelo cron de heartbeat
 ```
 
 RLS: cada usuário só edita seus próprios repertórios/dados; o catálogo de
