@@ -5,7 +5,6 @@ import {
   buildInspectionRecord,
   extractEventType,
   extractSignatureAnywhere,
-  isAuthentic,
   isInspectionMode,
   mapKiwifyEventToSubscriptionStatus,
   matchUserIdByEmail,
@@ -29,37 +28,35 @@ import type { SubscriptionRow, WebhookEventRow } from "@/types/database";
  * `webhook_events` para auditoria mas NUNCA altera `subscriptions` no MVP —
  * ver comentário em EVENT_TO_STATUS.
  *
- * Autenticação/hardening: como o mecanismo de `?signature=` continua NÃO
- * CONFIRMADO (`isAuthentic` permanece incapaz de validar), a defesa real
- * contra webhooks forjados é a VERIFICAÇÃO SERVER-TO-SERVER — antes de
- * alterar qualquer `subscriptions`, consultamos GET /v1/sales/{order_id} com
- * nossas próprias credenciais OAuth (src/lib/billing/kiwifyApi.ts) e exigimos
- * que MÚLTIPLOS campos retornados pela API (nunca os do corpo do webhook)
- * concordem: produto, e-mail do cliente e status oficial da venda (ver
- * `validateSaleForEvent`). order_id sozinho NÃO é tratado como segredo — ele
- * só destrava o processamento se todos os outros campos também confirmarem.
- * Qualquer falha (venda não encontrada, API indisponível, credenciais
- * ausentes, campo divergente) resulta em FAIL CLOSED: nada é alterado.
+ * Autenticação/hardening: decisão CONSCIENTE de MVP — o mecanismo de
+ * `?signature=`/`body.signature` continua NÃO CONFIRMADO (sem documentação
+ * oficial do algoritmo), então NÃO bloqueamos o processamento por causa dela
+ * nem implementamos nenhuma comparação criptográfica inventada
+ * (HMAC/SHA/Ed25519). A signature é só capturada para auditoria (mascarada
+ * em logs, guardada em webhook_events.raw_payload) — ver `extractSignatureAnywhere`.
+ *
+ * A segurança real é a VERIFICAÇÃO SERVER-TO-SERVER: antes de alterar
+ * qualquer `subscriptions`, consultamos GET /v1/sales/{order_id} com nossas
+ * próprias credenciais OAuth (src/lib/billing/kiwifyApi.ts) e exigimos que
+ * MÚLTIPLOS campos retornados pela API (nunca os do corpo do webhook)
+ * concordem: sale.id, produto, e-mail do cliente e status oficial da venda
+ * (ver `validateSaleForEvent`). order_id sozinho NÃO é tratado como segredo —
+ * ele só destrava o processamento se todos os outros campos também
+ * confirmarem. Qualquer falha (order_id ausente, credenciais da API Kiwify
+ * ausentes, OAuth falhar, venda não existir, sale.id/produto/e-mail/status
+ * divergentes, API indisponível) resulta em FAIL CLOSED: `subscriptions`
+ * nunca é alterada.
  */
 export async function POST(request: Request) {
   const rawText = await request.text();
 
   // Modo de inspeção (KIWIFY_WEBHOOK_INSPECT=true): registra a entrega
-  // completa (headers + query + body) sem verificar token e sem tocar em
-  // `subscriptions` — usado para descobrir o mecanismo real de autenticação
-  // da Kiwify e a estrutura de cada evento antes de confiar em `isAuthentic`.
-  // Nunca concede acesso. NÃO desligar até a autenticação estar confirmada.
+  // completa (headers + query + body) sem tocar em `subscriptions` — usado só
+  // para auditoria/descoberta de estrutura. Com INSPECT=false (padrão de
+  // produção), o processamento real roda: a segurança não depende de token
+  // nenhum aqui, e sim da verificação server-to-server abaixo.
   if (isInspectionMode()) {
     return handleInspection(request, rawText);
-  }
-
-  if (!process.env.KIWIFY_WEBHOOK_TOKEN) {
-    console.error("[kiwify webhook] KIWIFY_WEBHOOK_TOKEN não configurado — rejeitando por segurança.");
-    return NextResponse.json({ error: "Webhook não configurado." }, { status: 503 });
-  }
-
-  if (!isAuthentic(request)) {
-    return NextResponse.json({ error: "Token inválido." }, { status: 401 });
   }
 
   let rawBody: Record<string, unknown>;
@@ -67,6 +64,13 @@ export async function POST(request: Request) {
     rawBody = JSON.parse(rawText) as Record<string, unknown>;
   } catch {
     return NextResponse.json({ error: "Payload inválido (JSON esperado)." }, { status: 400 });
+  }
+
+  // Só para auditoria — nunca usada para autenticar (ver comentário acima).
+  // Não loga o valor, só onde foi encontrada.
+  const signature = extractSignatureAnywhere(request, rawBody);
+  if (signature) {
+    console.log(`[kiwify webhook] signature presente (${new URL(request.url).searchParams.has("signature") ? "query" : "body"}) — capturada só para auditoria, não usada para autenticar.`);
   }
 
   // CONFIRMADO no primeiro webhook real: o corpo pode vir envolvido em
