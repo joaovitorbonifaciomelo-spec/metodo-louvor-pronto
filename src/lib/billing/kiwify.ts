@@ -465,15 +465,13 @@ export function validateSaleForEvent(
         : { valid: false, reason: `status da venda ("${sale.status}") não confirma chargeback` };
 
     case "subscription_late":
-      // A API de Vendas não expõe "waiting_payment" (esse é um status de
-      // ASSINATURA, não de venda/pedido, e não há endpoint oficial de
-      // assinatura). Melhor esforço documentado: só aceitamos se o status da
-      // venda associada NÃO for "paid" — isto é, algo saiu diferente do
-      // fluxo normal de pagamento aprovado. Se vier "paid" mesmo assim
-      // (evento inconsistente), falha fechado.
-      return sale.status && sale.status !== "paid"
-        ? { valid: true, reason: `status da venda ("${sale.status}") indica cobrança não concluída — compatível com atraso` }
-        : { valid: false, reason: `status da venda ("${sale.status}") não confirma cobrança em atraso` };
+      // Exige exatamente "waiting_payment" — o valor que a documentação
+      // oficial da Kiwify lista para esse estado. "!= paid" é amplo demais e
+      // aceitaria indevidamente refunded/chargedback/refused/pending_refund/
+      // refund_requested/etc. como se fossem atraso de pagamento.
+      return sale.status === "waiting_payment"
+        ? { valid: true, reason: "status da venda confirma waiting_payment" }
+        : { valid: false, reason: `status da venda ("${sale.status}") não é "waiting_payment"` };
 
     default:
       return { valid: false, reason: `evento "${eventType}" não tem regra de validação server-to-server definida` };

@@ -368,6 +368,19 @@ describe("validateSaleForEvent (hardening — venda tem que confirmar produto + 
     expect(validateSaleForEvent("chargeback", parsed, verifiedSale({ id: parsed.orderId!, status: "paid" })).valid).toBe(false);
   });
 
+  it("subscription_late: exige EXATAMENTE status waiting_payment confirmado pela API (não é só '!= paid')", () => {
+    vi.stubEnv("KIWIFY_PRODUCT_ID", "prod-fake-1");
+    const parsed = parseKiwifyWebhook(SUBSCRIPTION_LATE);
+    const sale = (status: string) => verifiedSale({ id: parsed.orderId!, status });
+
+    expect(validateSaleForEvent("subscription_late", parsed, sale("waiting_payment")).valid).toBe(true);
+
+    // Nenhum destes pode ser confundido com atraso de pagamento, mesmo sendo != "paid":
+    for (const status of ["refunded", "chargedback", "refused", "pending_refund", "refund_requested", "paid", "past_due"]) {
+      expect(validateSaleForEvent("subscription_late", parsed, sale(status)).valid).toBe(false);
+    }
+  });
+
   it("webhook falso de subscription_canceled: nunca é considerado válido (evento nem tem regra de validação)", () => {
     vi.stubEnv("KIWIFY_PRODUCT_ID", "prod-fake-1");
     const parsed = parseKiwifyWebhook(SUBSCRIPTION_CANCELED);
