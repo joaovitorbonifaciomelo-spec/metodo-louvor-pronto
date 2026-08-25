@@ -8,17 +8,19 @@ import {
   extractOrderInfo,
   isAuthentic,
   isInspectionMode,
-  isKiwifyEvent,
+  matchUserIdByEmail,
 } from "@/lib/billing/kiwify";
 import type { SubscriptionRow } from "@/types/database";
 
 /**
  * Webhook de pagamento da Kiwify (seção "Fluxo comercial"). Único lugar que
  * pode conceder/revogar acesso pago — o app NUNCA libera acesso só porque o
- * navegador voltou do checkout. Ver src/lib/billing/kiwify.ts para as
- * ressalvas sobre o que está 100% confirmado pela documentação pública da
- * Kiwify (nomes de evento) vs. o que é melhor esforço (verificação do token e
- * nomes de campo do payload) até o primeiro teste real.
+ * navegador voltou do checkout. Ver src/lib/billing/kiwify.ts para o que já
+ * foi CONFIRMADO por inspeção de um payload de teste real (evento
+ * "order_approved", estrutura de Product/Customer/Subscription) vs. o que
+ * ainda não foi observado (os outros 5 eventos) ou não está confirmado
+ * (mecanismo de autenticação — `isAuthentic` permanece incapaz de validar de
+ * verdade até isso ser resolvido).
  */
 export async function POST(request: Request) {
   const rawText = await request.text();
@@ -70,7 +72,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    if (isKiwifyEvent(eventType) && EVENT_TO_STATUS[eventType]) {
+    if (EVENT_TO_STATUS[eventType]) {
       await applySubscriptionEvent(supabase, eventType, info);
     }
     if (inserted) {
@@ -122,30 +124,55 @@ async function handleInspection(request: Request, rawText: string) {
   return NextResponse.json({ ok: true, inspection: true });
 }
 
-/** Busca o usuário pelo e-mail via Admin API (não há coluna de e-mail em `profiles`). */
+/**
+ * Busca o usuário pelo e-mail via Admin API (não há coluna de e-mail em
+ * `profiles`) — NUNCA cria um usuário novo, só localiza um já existente
+ * (ver seção "vincular compra ao usuário"). O matching em si é puro e fica
+ * em src/lib/billing/kiwify.ts (matchUserIdByEmail) para ser testável.
+ */
 async function findUserIdByEmail(
   supabase: ReturnType<typeof createAdminClient>,
   email: string | null
 ): Promise<string | null> {
   if (!email) return null;
-  const normalized = email.trim().toLowerCase();
 
   // Base de usuários pequena nesta fase do produto — uma página de 200 cobre o caso real.
   // Se o catálogo de usuários crescer muito, paginar aqui.
   const { data, error } = await supabase.auth.admin.listUsers({ page: 1, perPage: 200 });
   if (error) return null;
-  const match = data.users.find((u) => u.email?.toLowerCase() === normalized);
-  return match?.id ?? null;
+  return matchUserIdByEmail(data.users, email);
 }
 
 type EventInfo = ReturnType<typeof extractOrderInfo>;
 
+/**
+ * Aplica um evento que já sabemos alterar status (EVENT_TO_STATUS[eventType]
+ * existe) a uma linha de `subscriptions`. Se o usuário comprador ainda não
+ * tiver conta no Supabase, a linha é criada/atualizada mesmo assim com
+ * `user_id = null` e `customer_email` preenchido — o webhook nunca é
+ * descartado por falta de conta; a vinculação acontece depois (ver seção
+ * "vincular compra ao usuário").
+ */
 async function applySubscriptionEvent(
   supabase: ReturnType<typeof createAdminClient>,
-  eventType: keyof typeof EVENT_TO_STATUS,
+  eventType: string,
   info: EventInfo
 ) {
-  const status = EVENT_TO_STATUS[eventType]!;
+  const targetStatus = EVENT_TO_STATUS[eventType];
+  if (!targetStatus) return;
+
+  // Guarda específica do order_approved: só confiamos no status "active" se o
+  // próprio payload confirmar Subscription.status === "active". Um
+  // order_approved com outro valor aí é uma combinação nunca observada — não
+  // inventamos o que fazer, só registramos o alerta e não mexemos no status
+  // (os demais campos do evento ainda são salvos normalmente abaixo).
+  const statusConfirmedByPayload = eventType !== "order_approved" || info.subscriptionStatus === "active";
+  if (!statusConfirmedByPayload) {
+    console.warn(
+      `[kiwify webhook] order_approved com Subscription.status="${info.subscriptionStatus}" (esperado "active") — não atualizando status automaticamente.`
+    );
+  }
+
   const now = new Date().toISOString();
 
   let existing: SubscriptionRow | null = null;
@@ -162,9 +189,9 @@ async function applySubscriptionEvent(
   const userId = existing?.user_id ?? (await findUserIdByEmail(supabase, info.customerEmail));
 
   const update: Partial<SubscriptionRow> & Record<string, unknown> = {
-    status,
     provider: "kiwify",
   };
+  if (statusConfirmedByPayload) update.status = targetStatus;
   if (userId) update.user_id = userId;
   if (info.customerEmail) update.customer_email = info.customerEmail;
   if (info.subscriptionId) update.provider_subscription_id = info.subscriptionId;
@@ -172,14 +199,17 @@ async function applySubscriptionEvent(
   if (info.productId) update.provider_product_id = info.productId;
   if (info.periodEnd) update.current_period_end = info.periodEnd;
 
-  if (status === "active") {
+  if (statusConfirmedByPayload && targetStatus === "active") {
     update.past_due_since = null;
     update.canceled_at = null;
-    if (!existing?.started_at) update.started_at = now;
-    update.current_period_start = now;
-  } else if (status === "past_due") {
+    if (!existing?.started_at) update.started_at = info.startedAt ?? now;
+    // Subscription.start_date vale para a 1ª compra (único caso hoje: order_approved).
+    // Revisar quando subscription_renewed for confirmado — provavelmente deve
+    // avançar o período em vez de usar start_date de novo.
+    update.current_period_start = info.startedAt ?? now;
+  } else if (statusConfirmedByPayload && targetStatus === "past_due") {
     if (!existing?.past_due_since) update.past_due_since = now;
-  } else if (status === "canceled") {
+  } else if (statusConfirmedByPayload && targetStatus === "canceled") {
     update.canceled_at = now;
   }
 

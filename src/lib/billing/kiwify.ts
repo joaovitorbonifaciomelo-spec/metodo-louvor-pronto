@@ -1,11 +1,18 @@
 import type { SubscriptionStatus } from "@/types/database";
 
 /**
- * Nomes de evento REAIS da Kiwify (documentação oficial:
- * https://docs.kiwify.com.br/api-reference/webhooks/create). Não inventar
- * outros — se a Kiwify mudar/adicionar eventos, atualizar esta lista.
+ * Nomes de TRIGGER usados ao CADASTRAR o webhook no painel/API da Kiwify
+ * (documentação oficial: https://docs.kiwify.com.br/api-reference/webhooks/create).
+ * IMPORTANTE — confirmado via inspeção real (payload de teste da própria
+ * Kiwify): este vocabulário em português (compra_aprovada, chargeback, ...)
+ * NÃO é o mesmo que o campo `webhook_event_type` que chega no corpo de cada
+ * evento entregue. Ex.: o trigger "compra_aprovada" entrega um payload com
+ * `webhook_event_type: "order_approved"`, e "boleto_gerado" entrega
+ * `webhook_event_type: "billet_created"`. Esta lista serve só para saber quais
+ * caixinhas marcar ao criar o webhook — NÃO usar para decidir o que fazer com
+ * um evento recebido (ver CONFIRMED_WEBHOOK_EVENT_TYPES/EVENT_TO_STATUS abaixo).
  */
-export const KIWIFY_EVENTS = [
+export const KIWIFY_WEBHOOK_TRIGGERS = [
   "boleto_gerado",
   "pix_gerado",
   "carrinho_abandonado",
@@ -18,45 +25,78 @@ export const KIWIFY_EVENTS = [
   "subscription_renewed",
 ] as const;
 
-export type KiwifyEvent = (typeof KIWIFY_EVENTS)[number];
+export type KiwifyWebhookTrigger = (typeof KIWIFY_WEBHOOK_TRIGGERS)[number];
 
-export function isKiwifyEvent(value: unknown): value is KiwifyEvent {
-  return typeof value === "string" && (KIWIFY_EVENTS as readonly string[]).includes(value);
+/** @deprecated use KIWIFY_WEBHOOK_TRIGGERS — mantido só para não quebrar código antigo. */
+export const KIWIFY_EVENTS = KIWIFY_WEBHOOK_TRIGGERS;
+/** @deprecated use KiwifyWebhookTrigger. */
+export type KiwifyEvent = KiwifyWebhookTrigger;
+
+export function isKiwifyEvent(value: unknown): value is KiwifyWebhookTrigger {
+  return typeof value === "string" && (KIWIFY_WEBHOOK_TRIGGERS as readonly string[]).includes(value);
 }
 
 /**
- * Eventos que alteram o status de uma assinatura. Os demais (boleto/pix
- * gerado, carrinho abandonado, compra recusada) são só informativos — ficam
- * registrados em webhook_events para auditoria, mas não mudam `subscriptions`.
+ * Valores REAIS de `webhook_event_type` confirmados via inspeção de payload
+ * de teste enviado pela própria Kiwify (não documentação, não suposição):
+ *
+ * - "order_approved"  -> compra aprovada (trigger "compra_aprovada")
+ * - "billet_created"  -> boleto gerado (trigger "boleto_gerado") — informativo, não processamos
+ *
+ * Os outros 5 (reembolso, chargeback, assinatura cancelada/atrasada/renovada)
+ * ainda NÃO foram observados — não adivinhar os nomes. Adicionar aqui só
+ * depois de confirmar via um teste real na Kiwify (ver modo de inspeção).
  */
-export const EVENT_TO_STATUS: Partial<Record<KiwifyEvent, SubscriptionStatus>> = {
-  compra_aprovada: "active",
-  subscription_renewed: "active",
-  subscription_canceled: "canceled",
-  subscription_late: "past_due",
-  compra_reembolsada: "refunded",
-  chargeback: "chargeback",
+export const CONFIRMED_WEBHOOK_EVENT_TYPES = ["order_approved", "billet_created"] as const;
+
+/**
+ * Eventos que alteram o status de uma assinatura, chaveados pelo valor REAL
+ * de `webhook_event_type` (confirmado acima) — não pelos nomes de trigger em
+ * português. Só contém o que já foi observado; os demais ficam de fora de
+ * propósito até serem confirmados (ver seção "outros 5 eventos").
+ */
+export const EVENT_TO_STATUS: Partial<Record<string, SubscriptionStatus>> = {
+  order_approved: "active",
 };
 
 /**
- * Extrai o evento e o token de autenticação da requisição recebida.
+ * Extrai o token de autenticação da requisição recebida.
  *
- * IMPORTANTE — o mecanismo exato de verificação da Kiwify não está 100%
- * documentado publicamente: a Kiwify gera um `token` por webhook cadastrado
- * (confirmado pela API oficial) e instrui a colar esse token "na sua
- * aplicação", mas a forma exata de transporte (query string vs. header) não
- * está descrita nas páginas de ajuda públicas. A convenção mais usada nas
- * integrações reais é o token embutido na própria URL cadastrada
- * (`.../api/webhooks/kiwify?token=...`), então é isso que verificamos aqui.
- * Ao configurar o webhook de verdade, confirme no primeiro evento de teste
- * (registrado em `webhook_events.raw_payload`) se bate com o esperado — se a
- * Kiwify usar outro mecanismo (ex.: header), ajustar `extractToken` abaixo.
- * Use `isInspectionMode()` para descobrir o mecanismo real ANTES de confiar
- * nesta função em produção — ver route.ts do webhook.
+ * ATUALIZADO após inspeção real: a Kiwify chama o endpoint com
+ * `?signature=<hex>` na query string — NÃO `?token=...` como assumíamos antes.
+ * PORÉM ainda NÃO SABEMOS como essa signature é calculada nem se ela tem
+ * qualquer relação com o "Token" mostrado no painel da Kiwify — são
+ * claramente coisas diferentes (formatos diferentes) e não presumimos
+ * `signature === token`.
+ *
+ * A Kiwify documenta publicamente um mecanismo de assinatura Ed25519 via
+ * headers `x-kiwify-digital-signature` + `x-kiwify-timestamp`
+ * (https://docs.kiwify.com.br/api-reference/banking/webhook-headers), mas
+ * essa página está sob "Banking" (produto de PIX/boleto — o exemplo de URL
+ * usado lá é literalmente "/webhooks/kiwibank"), um produto diferente do
+ * webhook de pedidos/assinaturas que estamos usando. O payload de teste real
+ * que recebemos não teve esses headers relatados. Por isso NÃO implementamos
+ * Ed25519 aqui — seria assumir que os dois produtos compartilham mecanismo,
+ * o que não está confirmado. Antes de confiar nisso, confira no
+ * `webhook_events` já gravado se os headers `x-kiwify-digital-signature` e
+ * `x-kiwify-timestamp` realmente vieram na mesma entrega que teve
+ * `?signature=` — se sim, o mecanismo Ed25519 pode se aplicar de verdade e
+ * dá pra implementar; se não, o mecanismo da `signature` da query string
+ * continua 100% NÃO CONFIRMADO.
+ *
+ * Enquanto isso não for resolvido, `isAuthentic` abaixo permanece incapaz de
+ * validar de verdade (sempre nega) — o endpoint só aceita entregas reais hoje
+ * através do modo de inspeção (`isInspectionMode`), que nunca concede acesso.
  */
 export function extractToken(request: Request): string | null {
   const url = new URL(request.url);
   return url.searchParams.get("token") ?? request.headers.get("x-kiwify-token");
+}
+
+/** Valor cru do parâmetro `signature` observado na query string real da Kiwify. */
+export function extractSignature(request: Request): string | null {
+  const url = new URL(request.url);
+  return url.searchParams.get("signature");
 }
 
 export function isAuthentic(request: Request): boolean {
@@ -127,10 +167,12 @@ export function buildInspectionRecord(request: Request, rawText: string): Inspec
 }
 
 /**
- * Nome do campo de evento dentro do corpo do webhook também não está 100%
- * confirmado publicamente — tentamos os candidatos mais prováveis. O corpo
- * bruto é sempre gravado em webhook_events.raw_payload, então nada se perde
- * mesmo se nenhum desses campos bater; ajuste aqui ao ver o payload real.
+ * `webhook_event_type` é o campo REAL confirmado por inspeção (payload de
+ * teste de "Compra aprovada" trouxe `webhook_event_type: "order_approved"`).
+ * Priorizamos exatamente esse campo; os demais candidatos são só fallback de
+ * compatibilidade (nunca observados na prática, mantidos por segurança caso
+ * algum evento futuro venha num formato diferente). O corpo bruto é sempre
+ * gravado em webhook_events.raw_payload, então nada se perde de qualquer forma.
  */
 export function extractEventType(body: Record<string, unknown>): string | null {
   const candidate =
@@ -144,6 +186,8 @@ interface ExtractedOrderInfo {
   productId: string | null;
   customerId: string | null;
   customerEmail: string | null;
+  subscriptionStatus: string | null;
+  startedAt: string | null;
   periodEnd: string | null;
 }
 
@@ -155,9 +199,25 @@ function readString(...values: unknown[]): string | null {
 }
 
 /**
- * Extração best-effort dos campos do payload — mesma ressalva do comentário
- * acima: o schema exato de order/subscription da Kiwify não pôde ser
- * confirmado via documentação pública no momento em que isto foi escrito.
+ * Extração dos campos do payload de `order_approved`, baseada na estrutura
+ * REAL observada por inspeção (não mais suposição):
+ *
+ *   Product.product_id, Product.product_name
+ *   Customer.email, Customer.full_name, Customer.first_name, Customer.mobile
+ *   order_id, order_ref, order_status
+ *   Subscription.id, Subscription.status, Subscription.start_date, Subscription.next_payment
+ *   Subscription.plan.{id,name,frequency,qty_charges}
+ *   subscription_id (fallback solto, fora de Subscription)
+ *
+ * `customerId`/`provider_customer_id`: a estrutura observada NÃO tem nenhum
+ * campo de id de cliente (só email/nome/telefone) — por isso NUNCA inventamos
+ * um a partir do e-mail; os candidatos abaixo (customer.id/customer_id) ficam
+ * só para o caso de outro tipo de evento vir a trazer um id real, e resolvem
+ * para null quando ausentes (nunca fabricam um valor).
+ *
+ * Os outros 5 eventos (reembolso, chargeback, cancelamento, atraso, renovação)
+ * ainda não foram observados — esta função pode precisar de ajuste quando
+ * confirmarmos a estrutura deles.
  */
 export function extractOrderInfo(body: Record<string, unknown>): ExtractedOrderInfo {
   const customer = (body.Customer ?? body.customer ?? {}) as Record<string, unknown>;
@@ -167,16 +227,38 @@ export function extractOrderInfo(body: Record<string, unknown>): ExtractedOrderI
   return {
     orderId: readString(body.order_id, body.id),
     subscriptionId: readString(subscription.id, body.subscription_id),
-    productId: readString(product.id, body.product_id),
-    customerId: readString(customer.id, body.customer_id),
-    customerEmail: readString(customer.email, body.customer_email, body.email),
+    productId: readString(product.product_id, product.id, body.product_id),
+    customerId: readString(customer.id, customer.customer_id, body.customer_id),
+    customerEmail: normalizeEmail(readString(customer.email, body.customer_email, body.email)),
+    subscriptionStatus: readString(subscription.status),
+    startedAt: readString(subscription.start_date, body.approved_date, body.created_at),
     periodEnd: readString(
-      subscription.current_period_end,
       subscription.next_payment,
+      subscription.current_period_end,
       body.current_period_end,
       body.next_payment
     ),
   };
+}
+
+function normalizeEmail(email: string | null): string | null {
+  return email ? email.trim().toLowerCase() : null;
+}
+
+/**
+ * Encontra, numa lista de usuários (ex.: retorno de supabase.auth.admin.listUsers),
+ * o id daquele cujo e-mail bate com o e-mail do comprador — nunca cria usuário,
+ * só localiza um já existente. Função pura para ser testável sem tocar no
+ * Supabase de verdade (a chamada real fica em route.ts).
+ */
+export function matchUserIdByEmail(
+  users: { id: string; email?: string | null }[],
+  email: string | null
+): string | null {
+  const normalized = normalizeEmail(email);
+  if (!normalized) return null;
+  const match = users.find((u) => u.email?.toLowerCase() === normalized);
+  return match?.id ?? null;
 }
 
 /**
