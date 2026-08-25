@@ -145,6 +145,22 @@ export function extractSignature(request: Request): string | null {
   return url.searchParams.get("signature");
 }
 
+/**
+ * Valor observado de assinatura em QUALQUER um dos dois lugares confirmados
+ * por inspeção: query string `?signature=` (payloads de teste) e campo
+ * `body.signature` no wrapper (primeiro payload real de produção). Ainda NÃO
+ * sabemos se são o mesmo mecanismo ou dois diferentes — isto é só para
+ * auditoria/log (nunca logar o valor completo, ver captureHeaders), NUNCA
+ * para validar autenticidade. A segurança do MVP continua sendo a
+ * verificação server-to-server (ver kiwifyApi.ts / validateSaleForEvent).
+ */
+export function extractSignatureAnywhere(request: Request, rawBody: Record<string, unknown> | null): string | null {
+  const fromQuery = extractSignature(request);
+  if (fromQuery) return fromQuery;
+  const fromBody = rawBody?.signature;
+  return typeof fromBody === "string" && fromBody ? fromBody : null;
+}
+
 export function isAuthentic(request: Request): boolean {
   const expected = process.env.KIWIFY_WEBHOOK_TOKEN;
   if (!expected) return false;
@@ -213,13 +229,32 @@ export function buildInspectionRecord(request: Request, rawText: string): Inspec
 }
 
 /**
+ * Normaliza o wrapper do payload — CONFIRMADO no primeiro webhook real de
+ * produção: o corpo vem como `{ url, signature, order: {...} }`, envolvendo
+ * os mesmos campos que os payloads de TESTE traziam direto na raiz
+ * (order_id, webhook_event_type, Product, Customer, Subscription, ...).
+ *
+ * Único ponto de normalização — nenhum outro lugar do código deve fazer
+ * `body.order ?? body` por conta própria. Todo parser comercial
+ * (extractEventType, extractOrderInfo, parseKiwifyWebhook) deve operar sobre
+ * o resultado desta função, nunca sobre o `body` bruto diretamente.
+ */
+export function normalizeKiwifyPayload(body: Record<string, unknown>): Record<string, unknown> {
+  const order = body.order;
+  return order && typeof order === "object" && !Array.isArray(order) ? (order as Record<string, unknown>) : body;
+}
+
+/**
  * `webhook_event_type` é o campo REAL confirmado por inspeção — presente e
- * confiável em todos os 6 eventos de assinatura observados (order_approved,
+ * confiável em todos os eventos de assinatura observados (order_approved,
  * subscription_renewed, subscription_late, subscription_canceled,
  * order_refunded, chargeback). Priorizamos exatamente esse campo; os demais
  * candidatos são só fallback de compatibilidade (nunca observados na
  * prática). O corpo bruto é sempre gravado em webhook_events.raw_payload,
  * então nada se perde de qualquer forma.
+ *
+ * Recebe o payload já normalizado (ver normalizeKiwifyPayload) — chamar
+ * sempre com o resultado dela, nunca com o body bruto sem checar o wrapper.
  */
 export function extractEventType(body: Record<string, unknown>): string | null {
   const candidate =
@@ -319,8 +354,9 @@ export interface ParsedKiwifyWebhook {
  * comercial) com os demais campos confirmados por inspeção real.
  */
 export function parseKiwifyWebhook(body: Record<string, unknown>): ParsedKiwifyWebhook {
-  const eventType = extractEventType(body) ?? "unknown";
-  const info = extractOrderInfo(body);
+  const orderPayload = normalizeKiwifyPayload(body);
+  const eventType = extractEventType(orderPayload) ?? "unknown";
+  const info = extractOrderInfo(orderPayload);
   return {
     eventType,
     orderId: info.orderId,

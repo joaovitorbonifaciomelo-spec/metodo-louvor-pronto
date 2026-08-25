@@ -7,6 +7,7 @@ import {
   extractEventType,
   extractOrderInfo,
   extractSignature,
+  extractSignatureAnywhere,
   extractToken,
   getConfiguredKiwifyProductId,
   isAllowedKiwifyProduct,
@@ -15,6 +16,7 @@ import {
   isKiwifyEvent,
   mapKiwifyEventToSubscriptionStatus,
   matchUserIdByEmail,
+  normalizeKiwifyPayload,
   parseKiwifyWebhook,
   validateSaleForEvent,
   type VerifiedKiwifySale,
@@ -139,6 +141,117 @@ const CHARGEBACK = baseFixture({
     next_payment: "2026-08-29T19:58:52.342Z",
   },
   subscription_id: "sub-fake-5",
+});
+
+/**
+ * Fixture FICTÍCIA equivalente, em ESTRUTURA, ao primeiro webhook REAL de
+ * produção — confirmado que o corpo real vem envolvido assim, diferente dos
+ * payloads de TESTE (que trazem os campos direto na raiz, como ORDER_APPROVED
+ * acima). Nenhum valor real da compra entra aqui — só o formato do wrapper.
+ */
+const WRAPPED_ORDER_APPROVED = {
+  url: "https://example.com/api/webhooks/kiwify",
+  signature: "fake0000signature0000fake0000signature0000fake0000signature00",
+  order: baseFixture({
+    webhook_event_type: "order_approved",
+    order_id: "order-real-wrapped-fake",
+    order_status: "paid",
+    approved_date: "2026-08-26 19:40",
+    Subscription: {
+      id: "sub-real-wrapped-fake",
+      status: "active",
+      plan: { id: "plan-fake-1", name: "Example plan", frequency: "monthly", qty_charges: 0 },
+      start_date: "2026-08-22T19:40:56.040Z",
+      next_payment: "2026-09-22T19:40:56.040Z",
+    },
+    subscription_id: "sub-real-wrapped-fake",
+  }),
+};
+
+describe("normalizeKiwifyPayload (wrapper do payload real de produção)", () => {
+  it("desembrulha body.order quando presente", () => {
+    const normalized = normalizeKiwifyPayload(WRAPPED_ORDER_APPROVED);
+    expect(normalized).toBe(WRAPPED_ORDER_APPROVED.order);
+    expect((normalized as Record<string, unknown>).webhook_event_type).toBe("order_approved");
+  });
+
+  it("mantém o body como está quando não há wrapper (formato antigo/payload de teste)", () => {
+    const normalized = normalizeKiwifyPayload(ORDER_APPROVED);
+    expect(normalized).toBe(ORDER_APPROVED);
+  });
+
+  it("cai para o body inteiro se `order` existir mas não for um objeto (defensivo)", () => {
+    const body = { order: "isto-nao-e-um-objeto", webhook_event_type: "order_approved" };
+    expect(normalizeKiwifyPayload(body)).toBe(body);
+  });
+});
+
+describe("wrapper real ({ url, signature, order }) — pipeline completo continua funcionando", () => {
+  it("encontra order_id dentro do wrapper", () => {
+    expect(parseKiwifyWebhook(WRAPPED_ORDER_APPROVED).orderId).toBe("order-real-wrapped-fake");
+  });
+
+  it("encontra Product (productId) dentro do wrapper", () => {
+    expect(parseKiwifyWebhook(WRAPPED_ORDER_APPROVED).productId).toBe("prod-fake-1");
+  });
+
+  it("encontra Customer.email dentro do wrapper", () => {
+    expect(parseKiwifyWebhook(WRAPPED_ORDER_APPROVED).customerEmail).toBe("johndoe@example.com");
+  });
+
+  it("encontra Subscription (subscriptionId/status/datas) dentro do wrapper", () => {
+    const parsed = parseKiwifyWebhook(WRAPPED_ORDER_APPROVED);
+    expect(parsed.subscriptionId).toBe("sub-real-wrapped-fake");
+    expect(parsed.subscriptionStatus).toBe("active");
+    expect(parsed.startedAt).toBe("2026-08-22T19:40:56.040Z");
+    expect(parsed.currentPeriodEnd).toBe("2026-09-22T19:40:56.040Z");
+  });
+
+  it("order_approved (wrapper real) -> active, depois de validado contra a Sales API", () => {
+    vi.stubEnv("KIWIFY_PRODUCT_ID", "prod-fake-1");
+    const parsed = parseKiwifyWebhook(WRAPPED_ORDER_APPROVED);
+    expect(mapKiwifyEventToSubscriptionStatus(parsed.eventType)).toBe("active");
+
+    const sale: VerifiedKiwifySale = {
+      id: parsed.orderId!,
+      status: "paid",
+      productId: "prod-fake-1",
+      customerEmail: "johndoe@example.com",
+      refundedAt: null,
+    };
+    expect(validateSaleForEvent(parsed.eventType, parsed, sale).valid).toBe(true);
+    vi.unstubAllEnvs();
+  });
+
+  it("continua funcionando para o formato ANTIGO (payload de teste, sem wrapper)", () => {
+    const parsed = parseKiwifyWebhook(ORDER_APPROVED);
+    expect(parsed.eventType).toBe("order_approved");
+    expect(parsed.orderId).toBe("order-approved-1");
+    expect(parsed.productId).toBe("prod-fake-1");
+    expect(parsed.customerEmail).toBe("johndoe@example.com");
+  });
+});
+
+describe("extractSignatureAnywhere (auditoria — query OU body.signature, nunca os dois presumidos iguais)", () => {
+  it("encontra a signature na query string (formato dos payloads de teste)", () => {
+    const req = new Request("https://app.example.com/api/webhooks/kiwify?signature=abc123");
+    expect(extractSignatureAnywhere(req, null)).toBe("abc123");
+  });
+
+  it("encontra a signature no corpo (formato do wrapper real), quando ausente na query", () => {
+    const req = new Request("https://app.example.com/api/webhooks/kiwify");
+    expect(extractSignatureAnywhere(req, WRAPPED_ORDER_APPROVED)).toBe(WRAPPED_ORDER_APPROVED.signature);
+  });
+
+  it("prioriza a query quando ambas estão presentes", () => {
+    const req = new Request("https://app.example.com/api/webhooks/kiwify?signature=da-query");
+    expect(extractSignatureAnywhere(req, { signature: "do-corpo" })).toBe("da-query");
+  });
+
+  it("retorna null quando não há signature em lugar nenhum", () => {
+    const req = new Request("https://app.example.com/api/webhooks/kiwify");
+    expect(extractSignatureAnywhere(req, { foo: "bar" })).toBeNull();
+  });
 });
 
 describe("KIWIFY_WEBHOOK_TRIGGERS / isKiwifyEvent", () => {

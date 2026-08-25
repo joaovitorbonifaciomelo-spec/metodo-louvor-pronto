@@ -4,16 +4,18 @@ import {
   buildIdempotencyKey,
   buildInspectionRecord,
   extractEventType,
+  extractSignatureAnywhere,
   isAuthentic,
   isInspectionMode,
   mapKiwifyEventToSubscriptionStatus,
   matchUserIdByEmail,
+  normalizeKiwifyPayload,
   parseKiwifyWebhook,
   validateSaleForEvent,
   type ParsedKiwifyWebhook,
 } from "@/lib/billing/kiwify";
 import { fetchKiwifySale } from "@/lib/billing/kiwifyApi";
-import type { SubscriptionRow } from "@/types/database";
+import type { SubscriptionRow, WebhookEventRow } from "@/types/database";
 
 /**
  * Webhook de pagamento da Kiwify (seção "Fluxo comercial"). Único lugar que
@@ -60,31 +62,29 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Token inválido." }, { status: 401 });
   }
 
-  let body: Record<string, unknown>;
+  let rawBody: Record<string, unknown>;
   try {
-    body = JSON.parse(rawText) as Record<string, unknown>;
+    rawBody = JSON.parse(rawText) as Record<string, unknown>;
   } catch {
     return NextResponse.json({ error: "Payload inválido (JSON esperado)." }, { status: 400 });
   }
 
-  const parsed = parseKiwifyWebhook(body);
+  // CONFIRMADO no primeiro webhook real: o corpo pode vir envolvido em
+  // { url, signature, order: {...} } — normalizamos antes de qualquer parsing
+  // comercial (ver normalizeKiwifyPayload). O `rawBody` original (com o
+  // wrapper, se houver) é o que fica gravado em webhook_events.raw_payload,
+  // para nunca perder informação de auditoria.
+  const parsed = parseKiwifyWebhook(rawBody);
   const idempotencyKey = buildIdempotencyKey(parsed) ?? `sem-id:${crypto.randomUUID()}`;
 
   const supabase = createAdminClient();
 
-  const { data: inserted, error: logError } = await supabase
-    .from("webhook_events")
-    .insert({ provider: "kiwify", event_type: parsed.eventType, idempotency_key: idempotencyKey, raw_payload: body })
-    .select("id")
-    .maybeSingle();
-
-  if (logError) {
-    // unique(provider, idempotency_key) violada = webhook repetido; já processamos, não duplicar.
-    if ((logError as { code?: string }).code === "23505") {
-      return NextResponse.json({ ok: true, duplicate: true });
-    }
-    console.error("[kiwify webhook] falha ao registrar evento", logError.message);
-    return NextResponse.json({ error: logError.message }, { status: 500 });
+  const webhookEventRow = await resolveWebhookEventRow(supabase, idempotencyKey, parsed.eventType, rawBody);
+  if (webhookEventRow === "already_processed") {
+    return NextResponse.json({ ok: true, duplicate: true });
+  }
+  if (webhookEventRow === "log_failed") {
+    return NextResponse.json({ error: "Falha ao registrar o evento." }, { status: 500 });
   }
 
   try {
@@ -92,21 +92,76 @@ export async function POST(request: Request) {
     if (targetStatus) {
       await verifyAndApplySubscriptionEvent(supabase, targetStatus, parsed);
     }
-    if (inserted) {
-      await supabase.from("webhook_events").update({ processed_at: new Date().toISOString() }).eq("id", inserted.id);
-    }
+    await supabase
+      .from("webhook_events")
+      .update({ processed_at: new Date().toISOString(), processing_error: null })
+      .eq("id", webhookEventRow.id);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("[kiwify webhook] falha ao aplicar evento na assinatura", message);
-    if (inserted) {
-      await supabase.from("webhook_events").update({ processing_error: message }).eq("id", inserted.id);
-    }
-    // Retorna 200 mesmo assim: o evento já está registrado de forma idempotente
-    // (webhook_events); um erro de vinculação não deve fazer a Kiwify reenviar
-    // o mesmo evento indefinidamente. O erro fica salvo para investigação manual.
+    await supabase.from("webhook_events").update({ processing_error: message }).eq("id", webhookEventRow.id);
+    // 500 de propósito (não 200): o evento já está registrado de forma
+    // idempotente, então um reenvio da Kiwify é seguro (ver
+    // resolveWebhookEventRow) e agora tem chance real de ser reprocessado
+    // com sucesso se a falha foi transitória (ex.: API da Kiwify fora do ar).
+    return NextResponse.json({ error: "Erro interno ao processar o evento." }, { status: 500 });
   }
 
   return NextResponse.json({ ok: true });
+}
+
+/**
+ * Garante idempotência SEM bloquear retry de eventos que falharam.
+ *
+ * - Se não existe linha com essa (provider, idempotency_key): insere uma
+ *   nova e retorna ela.
+ * - Se já existe E já foi processada com sucesso (`processed_at` preenchido
+ *   e sem `processing_error`): é um reenvio de um evento que já concluímos —
+ *   retorna "already_processed" (no-op, nunca duplica).
+ * - Se já existe mas NÃO foi concluída com sucesso (ainda pendente, ou
+ *   terminou em erro): é seguro tentar de novo — retorna a linha existente
+ *   para o chamador reprocessar usando o MESMO id (não cria uma segunda
+ *   linha, não duplica subscriptions).
+ *
+ * Corrida verdadeiramente concorrente (duas entregas simultâneas antes de
+ * qualquer uma terminar) não está 100% resolvida aqui — decisão consciente
+ * para o estágio atual do MVP; a Kiwify reenvia após falha, não em paralelo.
+ */
+async function resolveWebhookEventRow(
+  supabase: ReturnType<typeof createAdminClient>,
+  idempotencyKey: string,
+  eventType: string,
+  rawPayload: Record<string, unknown>
+): Promise<WebhookEventRow | "already_processed" | "log_failed"> {
+  const { data: inserted, error: insertError } = await supabase
+    .from("webhook_events")
+    .insert({ provider: "kiwify", event_type: eventType, idempotency_key: idempotencyKey, raw_payload: rawPayload })
+    .select("*")
+    .maybeSingle();
+
+  if (!insertError && inserted) return inserted as unknown as WebhookEventRow;
+
+  // unique(provider, idempotency_key) violada = já existe uma linha para este evento.
+  if ((insertError as { code?: string } | null)?.code === "23505") {
+    const { data: existing, error: fetchError } = await supabase
+      .from("webhook_events")
+      .select("*")
+      .eq("provider", "kiwify")
+      .eq("idempotency_key", idempotencyKey)
+      .maybeSingle();
+
+    if (fetchError || !existing) {
+      console.error("[kiwify webhook] conflito de idempotência mas não achou a linha existente", fetchError?.message);
+      return "log_failed";
+    }
+
+    const row = existing as unknown as WebhookEventRow;
+    const alreadySucceeded = Boolean(row.processed_at) && !row.processing_error;
+    return alreadySucceeded ? "already_processed" : row;
+  }
+
+  console.error("[kiwify webhook] falha ao registrar evento", insertError?.message);
+  return "log_failed";
 }
 
 /**
@@ -118,12 +173,21 @@ export async function POST(request: Request) {
  */
 async function handleInspection(request: Request, rawText: string) {
   const record = buildInspectionRecord(request, rawText);
-  const eventTypeGuess = typeof record.bodyParsed === "object" && record.bodyParsed !== null
-    ? extractEventType(record.bodyParsed as Record<string, unknown>)
-    : null;
+  const bodyParsed =
+    typeof record.bodyParsed === "object" && record.bodyParsed !== null
+      ? (record.bodyParsed as Record<string, unknown>)
+      : null;
+  // Normaliza o wrapper { order: {...} } antes de adivinhar o evento — sem
+  // isso, um payload real (envolvido) sempre seria tagueado como "unknown".
+  const eventTypeGuess = bodyParsed ? extractEventType(normalizeKiwifyPayload(bodyParsed)) : null;
+  const signaturePresent = Boolean(extractSignatureAnywhere(request, bodyParsed));
 
+  // Nunca logar o valor da signature/query completa (pode conter o próprio
+  // valor de assinatura) — só metadados. O payload completo (com a
+  // signature) ainda fica gravado em webhook_events.raw_payload, que só o
+  // service role acessa.
   console.log(
-    `[kiwify webhook][INSPEÇÃO] recebido — method=${record.method} query=${JSON.stringify(record.query)} eventTypeGuess=${eventTypeGuess ?? "?"}`
+    `[kiwify webhook][INSPEÇÃO] recebido — method=${record.method} eventTypeGuess=${eventTypeGuess ?? "?"} signaturePresent=${signaturePresent} wrapped=${Boolean(bodyParsed?.order)}`
   );
 
   try {
