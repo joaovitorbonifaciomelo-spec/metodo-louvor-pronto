@@ -1,42 +1,55 @@
-import Link from "next/link";
-import { DiscoverDemo } from "@/components/discover-demo";
-import { BrandLogo } from "@/components/brand-logo";
+import type { Metadata } from "next";
+import { getAccessInfo } from "@/lib/auth/session";
+import { getHeroExamplePair } from "@/lib/landing/hero-example";
 import { product } from "@/lib/config/product";
+import { LandingHeader } from "@/components/landing/header";
+import { Hero } from "@/components/landing/hero";
+import { ProblemSection } from "@/components/landing/problem-section";
+import { HowItWorksSection } from "@/components/landing/how-it-works";
+import { MedleysSection } from "@/components/landing/medleys-section";
+import { NovoCultoSection } from "@/components/landing/novo-culto-section";
+import { AudienceSection } from "@/components/landing/audience-section";
+import { DemoSection } from "@/components/landing/demo-section";
+import { BenefitsSection } from "@/components/landing/benefits-section";
+import { PricingSection } from "@/components/landing/pricing-section";
+import { TestimonialsSection } from "@/components/landing/testimonials-section";
+import { FaqSection } from "@/components/landing/faq-section";
+import { FinalCtaSection } from "@/components/landing/final-cta-section";
 
-export default function LandingPage() {
+const TITLE = "Louvor Pronto — Monte repertórios e encontre medleys";
+const DESCRIPTION =
+  "Monte repertórios para o culto, encontre louvores que combinam e descubra medleys sugeridos com o Louvor Pronto.";
+
+export const metadata: Metadata = {
+  title: TITLE,
+  description: DESCRIPTION,
+  openGraph: {
+    title: TITLE,
+    description: DESCRIPTION,
+    type: "website",
+    locale: "pt_BR",
+  },
+};
+
+export default async function LandingPage() {
+  const [{ userId, access }, example] = await Promise.all([getAccessInfo(), getHeroExamplePair()]);
+  const ctaAccess = { loggedIn: Boolean(userId), granted: access.granted };
+
   return (
     <main className="flex flex-col items-center">
-      <header className="flex w-full max-w-5xl flex-wrap items-center justify-between gap-y-2 px-4 py-4 sm:px-6 sm:py-6">
-        <Link href="/" aria-label={product.name}>
-          <BrandLogo variant="full" priority className="h-8 sm:h-10" />
-        </Link>
-        <nav className="flex items-center gap-2 text-sm sm:gap-4">
-          <Link href="/login" className="rounded-lg px-2 py-2 text-base-300 hover:text-base-100">
-            Entrar
-          </Link>
-          <Link
-            href="/signup"
-            className="rounded-lg bg-accent px-3 py-2 font-medium text-accent-fg hover:bg-accent/90 sm:px-3.5"
-          >
-            Começar agora
-          </Link>
-        </nav>
-      </header>
-
-      <section className="flex w-full max-w-3xl flex-col items-center gap-4 px-4 pb-8 pt-8 text-center sm:px-6 sm:pb-10 sm:pt-16">
-        <span className="text-xs font-medium uppercase tracking-widest text-accent">{product.tagline}</span>
-        <h1 className="text-[clamp(1.75rem,7vw,3.25rem)] font-semibold leading-[1.15] text-base-50">
-          Monte o repertório do próximo culto em minutos.
-        </h1>
-        <p className="max-w-xl text-[15px] text-base-400 sm:text-lg">
-          Escolha uma música, descubra quais louvores combinam e monte seu setlist sem começar do zero.
-        </p>
-      </section>
-
-      <section className="w-full max-w-3xl px-4 pb-20 sm:px-6 sm:pb-24">
-        <DiscoverDemo />
-      </section>
-
+      <LandingHeader access={ctaAccess} />
+      <Hero access={ctaAccess} example={example} />
+      <ProblemSection />
+      <HowItWorksSection />
+      <MedleysSection example={example} />
+      <NovoCultoSection />
+      <AudienceSection />
+      <DemoSection />
+      <BenefitsSection />
+      <TestimonialsSection />
+      <PricingSection access={ctaAccess} />
+      <FaqSection />
+      <FinalCtaSection access={ctaAccess} />
       <footer className="w-full max-w-5xl px-4 pb-10 text-center text-xs text-base-400 sm:px-6">
         {product.name} — {new Date().getFullYear()}
       </footer>
