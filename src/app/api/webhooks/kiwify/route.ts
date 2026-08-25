@@ -4,12 +4,12 @@ import {
   buildIdempotencyKey,
   buildInspectionRecord,
   extractEventType,
-  isAllowedKiwifyProduct,
   isAuthentic,
   isInspectionMode,
   mapKiwifyEventToSubscriptionStatus,
   matchUserIdByEmail,
   parseKiwifyWebhook,
+  validateSaleForEvent,
   type ParsedKiwifyWebhook,
 } from "@/lib/billing/kiwify";
 import { fetchKiwifySale } from "@/lib/billing/kiwifyApi";
@@ -18,21 +18,26 @@ import type { SubscriptionRow } from "@/types/database";
 /**
  * Webhook de pagamento da Kiwify (seção "Fluxo comercial"). Único lugar que
  * pode conceder/revogar acesso pago — o app NUNCA libera acesso só porque o
- * navegador voltou do checkout.
+ * navegador voltou do checkout, e o webhook SOZINHO nunca concede nem revoga
+ * acesso (ver hardening abaixo).
  *
- * Os 6 eventos de assinatura relevantes (order_approved, subscription_renewed,
- * subscription_late, subscription_canceled, order_refunded, chargeback) e a
- * estrutura completa do payload já foram CONFIRMADOS por inspeção de
- * payloads de teste reais enviados pela própria Kiwify — ver
- * src/lib/billing/kiwify.ts para o mapeamento.
+ * Os eventos confirmados por inspeção de payloads de teste reais (não
+ * suposição) e sua estrutura completa estão documentados em
+ * src/lib/billing/kiwify.ts. `subscription_canceled` está registrado em
+ * `webhook_events` para auditoria mas NUNCA altera `subscriptions` no MVP —
+ * ver comentário em EVENT_TO_STATUS.
  *
- * Autenticação: como o mecanismo de `?signature=` continua NÃO CONFIRMADO
- * (`isAuthentic` permanece incapaz de validar), a defesa real contra webhooks
- * forjados é a VERIFICAÇÃO SERVER-TO-SERVER em src/lib/billing/kiwifyApi.ts —
- * antes de alterar qualquer `subscriptions`, confirmamos com nossas próprias
- * credenciais OAuth que o `order_id` do webhook realmente existe na nossa
- * conta Kiwify e pertence ao produto configurado (KIWIFY_PRODUCT_ID). Um
- * corpo de webhook forjado não passa por essa verificação.
+ * Autenticação/hardening: como o mecanismo de `?signature=` continua NÃO
+ * CONFIRMADO (`isAuthentic` permanece incapaz de validar), a defesa real
+ * contra webhooks forjados é a VERIFICAÇÃO SERVER-TO-SERVER — antes de
+ * alterar qualquer `subscriptions`, consultamos GET /v1/sales/{order_id} com
+ * nossas próprias credenciais OAuth (src/lib/billing/kiwifyApi.ts) e exigimos
+ * que MÚLTIPLOS campos retornados pela API (nunca os do corpo do webhook)
+ * concordem: produto, e-mail do cliente e status oficial da venda (ver
+ * `validateSaleForEvent`). order_id sozinho NÃO é tratado como segredo — ele
+ * só destrava o processamento se todos os outros campos também confirmarem.
+ * Qualquer falha (venda não encontrada, API indisponível, credenciais
+ * ausentes, campo divergente) resulta em FAIL CLOSED: nada é alterado.
  */
 export async function POST(request: Request) {
   const rawText = await request.text();
@@ -158,13 +163,15 @@ async function findUserIdByEmail(
 /**
  * Verifica a venda via API oficial da Kiwify (server-to-server, credenciais
  * nossas) ANTES de tocar em `subscriptions` — nunca confia só no corpo do
- * webhook. Só aplica o evento se:
- *   1. o evento trouxer um order_id (todos os 6 eventos confirmados trazem);
- *   2. GET /v1/sales/{order_id} confirmar que essa venda existe na nossa
- *      conta (null = não configurado ou não encontrada — nunca tratado como
- *      "encontrada por padrão");
- *   3. o product_id RETORNADO PELA KIWIFY (não o que veio no corpo do
- *      webhook) corresponder a KIWIFY_PRODUCT_ID.
+ * webhook nem no fato de o order_id "existir" (order_id NÃO é segredo; um
+ * atacante que conheça um order_id real de outra pessoa não pode ser
+ * bloqueado só por isso). Só aplica o evento se:
+ *   1. o evento trouxer um order_id;
+ *   2. GET /v1/sales/{order_id} confirmar que essa venda existe (null = API
+ *      indisponível, credenciais ausentes ou venda não encontrada — em
+ *      QUALQUER desses casos, FAIL CLOSED: não altera `subscriptions`);
+ *   3. `validateSaleForEvent` confirmar produto + e-mail + status oficial da
+ *      venda — todos vindos da resposta da API, nunca do corpo do webhook.
  * Qualquer falha aqui só loga e não altera `subscriptions` — o evento já
  * ficou registrado em webhook_events para auditoria.
  */
@@ -180,17 +187,20 @@ async function verifyAndApplySubscriptionEvent(
     return;
   }
 
+  // Erros de rede/API propagam para o catch em POST (fail closed: nada abaixo
+  // executa, e o erro fica registrado em webhook_events.processing_error).
   const verifiedSale = await fetchKiwifySale(parsed.orderId);
   if (!verifiedSale) {
     console.warn(
-      `[kiwify webhook] order_id="${parsed.orderId}" não confirmado pela API oficial da Kiwify (venda inexistente ou API não configurada) — evento "${parsed.eventType}" ignorado.`
+      `[kiwify webhook] order_id="${parsed.orderId}" não confirmado pela API oficial da Kiwify (venda inexistente, API indisponível ou credenciais ausentes) — evento "${parsed.eventType}" ignorado.`
     );
     return;
   }
 
-  if (!isAllowedKiwifyProduct(verifiedSale.productId)) {
+  const validation = validateSaleForEvent(parsed.eventType, parsed, verifiedSale);
+  if (!validation.valid) {
     console.warn(
-      `[kiwify webhook] venda confirmada (order_id="${parsed.orderId}") mas de outro produto (product_id="${verifiedSale.productId}") — evento "${parsed.eventType}" ignorado.`
+      `[kiwify webhook] venda encontrada mas validação falhou (order_id="${parsed.orderId}", evento="${parsed.eventType}"): ${validation.reason} — subscriptions não alteradas.`
     );
     return;
   }

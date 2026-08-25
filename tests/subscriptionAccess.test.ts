@@ -2,6 +2,8 @@ import { describe, expect, it, vi, afterEach } from "vitest";
 import { canAccessApp, getSubscriptionAccessStatus, resolveAccess } from "@/lib/billing/access";
 import type { SubscriptionRow } from "@/types/database";
 
+const FUTURE_PERIOD_END = "2099-01-01T00:00:00.000Z";
+
 function subscription(overrides: Partial<SubscriptionRow>): Pick<
   SubscriptionRow,
   "status" | "current_period_end" | "past_due_since"
@@ -14,15 +16,34 @@ function subscription(overrides: Partial<SubscriptionRow>): Pick<
   };
 }
 
+/** "active" só concede acesso com current_period_end no futuro — a maioria dos testes usa isso. */
+function activeSubscription(overrides: Partial<SubscriptionRow> = {}) {
+  return subscription({ status: "active", current_period_end: FUTURE_PERIOD_END, ...overrides });
+}
+
 describe("getSubscriptionAccessStatus", () => {
   it("nega acesso quando não existe assinatura", () => {
     expect(getSubscriptionAccessStatus(null)).toEqual({ granted: false, reason: "no_subscription" });
   });
 
-  it("libera acesso para assinatura active", () => {
-    expect(getSubscriptionAccessStatus(subscription({ status: "active" }))).toEqual({
+  it("libera acesso para assinatura active com current_period_end no futuro", () => {
+    expect(getSubscriptionAccessStatus(activeSubscription())).toEqual({
       granted: true,
       reason: "active",
+    });
+  });
+
+  describe("active — não é acesso eterno", () => {
+    it("nega acesso quando current_period_end já passou e nenhuma renovação foi confirmada", () => {
+      const now = new Date("2026-02-01T00:00:00Z");
+      const periodEnd = new Date("2026-01-15T00:00:00Z").toISOString(); // já passou
+      const result = getSubscriptionAccessStatus(subscription({ status: "active", current_period_end: periodEnd }), now);
+      expect(result).toEqual({ granted: false, reason: "active_period_ended" });
+    });
+
+    it("nega acesso (padrão seguro) quando status=active mas não há current_period_end", () => {
+      const result = getSubscriptionAccessStatus(subscription({ status: "active", current_period_end: null }));
+      expect(result).toEqual({ granted: false, reason: "active_no_period_info" });
     });
   });
 
@@ -125,9 +146,9 @@ describe("canAccessApp", () => {
     expect(canAccessApp("user", null).granted).toBe(false);
   });
 
-  it("em produção, usuário comum com assinatura active é liberado", () => {
+  it("em produção, usuário comum com assinatura active (período em dia) é liberado", () => {
     vi.stubEnv("NODE_ENV", "production");
-    expect(canAccessApp("user", subscription({ status: "active" })).granted).toBe(true);
+    expect(canAccessApp("user", activeSubscription()).granted).toBe(true);
   });
 });
 
@@ -140,7 +161,7 @@ describe("resolveAccess (múltiplas assinaturas por usuário)", () => {
     vi.stubEnv("NODE_ENV", "production");
     // Ordem = mais recente primeiro (como a query real: updated_at desc).
     const canceledNova = subscription({ status: "canceled", current_period_end: null });
-    const activeAntiga = subscription({ status: "active" });
+    const activeAntiga = activeSubscription();
     const result = resolveAccess("user", [canceledNova, activeAntiga]);
     expect(result.access).toEqual({ granted: true, reason: "active" });
     expect(result.subscription).toBe(activeAntiga);
@@ -148,11 +169,18 @@ describe("resolveAccess (múltiplas assinaturas por usuário)", () => {
 
   it("concede acesso quando a assinatura mais nova é active (caso comum: resubscribeu)", () => {
     vi.stubEnv("NODE_ENV", "production");
-    const activeNova = subscription({ status: "active" });
+    const activeNova = activeSubscription();
     const canceledAntiga = subscription({ status: "canceled", current_period_end: null });
     const result = resolveAccess("user", [activeNova, canceledAntiga]);
     expect(result.access).toEqual({ granted: true, reason: "active" });
     expect(result.subscription).toBe(activeNova);
+  });
+
+  it("nega acesso quando a única assinatura é active mas com current_period_end já no passado (sem renovação confirmada)", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    const expirada = subscription({ status: "active", current_period_end: "2020-01-01T00:00:00.000Z" });
+    const result = resolveAccess("user", [expirada]);
+    expect(result.access).toEqual({ granted: false, reason: "active_period_ended" });
   });
 
   it("nega acesso quando NENHUMA assinatura do usuário é válida agora", () => {

@@ -97,6 +97,23 @@ describe("fetchKiwifySale (verificação server-to-server)", () => {
     expect(sale).toBeNull();
   });
 
+  it("API da Kiwify fora do ar (rede falha): propaga o erro, nunca retorna uma venda falsa", async () => {
+    const fetchMock = vi.fn().mockRejectedValueOnce(new Error("network down"));
+    vi.stubGlobal("fetch", fetchMock);
+    const { fetchKiwifySale } = await loadModule();
+
+    await expect(fetchKiwifySale("order-1")).rejects.toThrow("network down");
+  });
+
+  it("token OAuth indisponível (API fora do ar na etapa de auth): propaga o erro, nunca segue para consultar a venda", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(new Response("service unavailable", { status: 503 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const { fetchKiwifySale } = await loadModule();
+
+    await expect(fetchKiwifySale("order-1")).rejects.toThrow(/Falha ao gerar token OAuth/);
+    expect(fetchMock).toHaveBeenCalledTimes(1); // nunca chegou a chamar /v1/sales
+  });
+
   it("nunca inclui client_id/client_secret na URL ou nos headers da chamada de vendas", async () => {
     const fetchMock = vi
       .fn()

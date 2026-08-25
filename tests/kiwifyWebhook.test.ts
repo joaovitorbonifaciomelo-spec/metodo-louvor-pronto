@@ -16,6 +16,8 @@ import {
   mapKiwifyEventToSubscriptionStatus,
   matchUserIdByEmail,
   parseKiwifyWebhook,
+  validateSaleForEvent,
+  type VerifiedKiwifySale,
 } from "@/lib/billing/kiwify";
 
 /**
@@ -171,12 +173,17 @@ describe("parseKiwifyWebhook — mapeamento evento -> status (autoritativo = web
     ["order_approved", ORDER_APPROVED, "active"],
     ["subscription_renewed", SUBSCRIPTION_RENEWED, "active"],
     ["subscription_late", SUBSCRIPTION_LATE, "past_due"],
-    ["subscription_canceled", SUBSCRIPTION_CANCELED, "canceled"],
     ["order_refunded", ORDER_REFUNDED, "refunded"],
     ["chargeback", CHARGEBACK, "chargeback"],
   ] as const)("%s -> %s", (_label, fixture, expectedStatus) => {
     const parsed = parseKiwifyWebhook(fixture);
     expect(mapKiwifyEventToSubscriptionStatus(parsed.eventType)).toBe(expectedStatus);
+  });
+
+  it("subscription_canceled NÃO mapeia para nenhum status (hardening de MVP — ver comentário em EVENT_TO_STATUS)", () => {
+    const parsed = parseKiwifyWebhook(SUBSCRIPTION_CANCELED);
+    expect(parsed.eventType).toBe("subscription_canceled");
+    expect(mapKiwifyEventToSubscriptionStatus(parsed.eventType)).toBeNull();
   });
 
   it("chargeback com Subscription.status='active' (real) resulta em status=chargeback, NUNCA active", () => {
@@ -287,6 +294,92 @@ describe("validação de produto (KIWIFY_PRODUCT_ID)", () => {
     vi.stubEnv("KIWIFY_PRODUCT_ID", "prod-correto");
     expect(isAllowedKiwifyProduct("prod-fake-1")).toBe(false);
     expect(isAllowedKiwifyProduct(null)).toBe(false);
+  });
+});
+
+describe("validateSaleForEvent (hardening — venda tem que confirmar produto + e-mail + status, order_id NÃO é segredo)", () => {
+  const parsedOrderApproved = parseKiwifyWebhook(ORDER_APPROVED); // orderId="order-approved-1", productId="prod-fake-1", email="johndoe@example.com"
+
+  function verifiedSale(overrides: Partial<VerifiedKiwifySale> = {}): VerifiedKiwifySale {
+    return {
+      id: parsedOrderApproved.orderId!,
+      status: "paid",
+      productId: "prod-fake-1",
+      customerEmail: "johndoe@example.com",
+      refundedAt: null,
+      ...overrides,
+    };
+  }
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("order real + produto correto + tudo correto → libera", () => {
+    vi.stubEnv("KIWIFY_PRODUCT_ID", "prod-fake-1");
+    const result = validateSaleForEvent("order_approved", parsedOrderApproved, verifiedSale());
+    expect(result.valid).toBe(true);
+  });
+
+  it("order real + produto correto + e-mail DIFERENTE do webhook → não libera", () => {
+    vi.stubEnv("KIWIFY_PRODUCT_ID", "prod-fake-1");
+    const sale = verifiedSale({ customerEmail: "outra-pessoa@example.com" });
+    const result = validateSaleForEvent("order_approved", parsedOrderApproved, sale);
+    expect(result.valid).toBe(false);
+  });
+
+  it("order real + e-mail correto + status NÃO pago → não libera", () => {
+    vi.stubEnv("KIWIFY_PRODUCT_ID", "prod-fake-1");
+    const sale = verifiedSale({ status: "pending" });
+    const result = validateSaleForEvent("order_approved", parsedOrderApproved, sale);
+    expect(result.valid).toBe(false);
+  });
+
+  it("order_approved usando uma venda que a API já mostra como refunded → não libera", () => {
+    vi.stubEnv("KIWIFY_PRODUCT_ID", "prod-fake-1");
+    const sale = verifiedSale({ status: "refunded", refundedAt: "2026-01-01T00:00:00Z" });
+    const result = validateSaleForEvent("order_approved", parsedOrderApproved, sale);
+    expect(result.valid).toBe(false);
+  });
+
+  it("produto da venda não bate com KIWIFY_PRODUCT_ID → não libera mesmo com e-mail/status corretos", () => {
+    vi.stubEnv("KIWIFY_PRODUCT_ID", "prod-correto");
+    const result = validateSaleForEvent("order_approved", parsedOrderApproved, verifiedSale({ productId: "prod-fake-1" }));
+    expect(result.valid).toBe(false);
+  });
+
+  it("order_refunded: exige status refunded (ou refunded_at) confirmado pela API", () => {
+    vi.stubEnv("KIWIFY_PRODUCT_ID", "prod-fake-1");
+    const parsed = parseKiwifyWebhook(ORDER_REFUNDED);
+    expect(validateSaleForEvent("order_refunded", parsed, verifiedSale({ id: parsed.orderId!, status: "refunded" })).valid).toBe(
+      true
+    );
+    expect(validateSaleForEvent("order_refunded", parsed, verifiedSale({ id: parsed.orderId!, status: "paid" })).valid).toBe(
+      false
+    );
+  });
+
+  it("chargeback: exige status chargedback confirmado pela API", () => {
+    vi.stubEnv("KIWIFY_PRODUCT_ID", "prod-fake-1");
+    const parsed = parseKiwifyWebhook(CHARGEBACK);
+    expect(validateSaleForEvent("chargeback", parsed, verifiedSale({ id: parsed.orderId!, status: "chargedback" })).valid).toBe(
+      true
+    );
+    expect(validateSaleForEvent("chargeback", parsed, verifiedSale({ id: parsed.orderId!, status: "paid" })).valid).toBe(false);
+  });
+
+  it("webhook falso de subscription_canceled: nunca é considerado válido (evento nem tem regra de validação)", () => {
+    vi.stubEnv("KIWIFY_PRODUCT_ID", "prod-fake-1");
+    const parsed = parseKiwifyWebhook(SUBSCRIPTION_CANCELED);
+    const result = validateSaleForEvent("subscription_canceled", parsed, verifiedSale({ id: parsed.orderId! }));
+    expect(result.valid).toBe(false);
+  });
+
+  it("sale.id divergente do order_id do webhook → não libera (defesa extra)", () => {
+    vi.stubEnv("KIWIFY_PRODUCT_ID", "prod-fake-1");
+    const sale = verifiedSale({ id: "order-diferente" });
+    const result = validateSaleForEvent("order_approved", parsedOrderApproved, sale);
+    expect(result.valid).toBe(false);
   });
 });
 

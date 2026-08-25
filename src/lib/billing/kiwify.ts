@@ -62,7 +62,7 @@ export const CONFIRMED_WEBHOOK_EVENT_TYPES = [
 /**
  * Eventos que alteram o status de uma assinatura, chaveados pelo valor REAL
  * de `webhook_event_type` — não pelos nomes de trigger em português, e NUNCA
- * por `Subscription.status` (ver ressalva importante abaixo). Todos os 6
+ * por `Subscription.status` (ver ressalva importante abaixo). Todos
  * confirmados via inspeção real; nenhum é suposição.
  *
  * IMPORTANTE — `Subscription.status` NÃO É CONFIÁVEL para decidir a transição
@@ -71,15 +71,26 @@ export const CONFIRMED_WEBHOOK_EVENT_TYPES = [
  *     resultado tem que ser "chargeback", nunca "active");
  *   - `order_refunded` chegou com `Subscription.status: "canceled"` (mesmo
  *     assim o resultado tem que ser "refunded", nunca "canceled").
- * Por isso `mapKiwifyEventToSubscriptionStatus`/`applySubscriptionEvent` usam
- * SOMENTE `webhook_event_type` — `Subscription.status` é guardado só como
- * dado informativo (`subscriptionStatus` no retorno de `parseKiwifyWebhook`).
+ * Por isso `applySubscriptionEvent` usa SOMENTE `webhook_event_type` +
+ * validação server-to-server (ver `validateSaleForEvent` abaixo) —
+ * `Subscription.status` do corpo do webhook é guardado só como dado
+ * informativo (`subscriptionStatus` no retorno de `parseKiwifyWebhook`).
+ *
+ * `subscription_canceled` NÃO está aqui de propósito (hardening de MVP): a
+ * API de Vendas não tem um jeito confirmado de atestar "esta assinatura foi
+ * cancelada" (o `status` de uma venda é do PEDIDO, não da assinatura — um
+ * pedido de uma assinatura cancelada pode continuar mostrando "paid"). Sem
+ * uma forma confiável de confirmar esse evento fora do próprio webhook (que
+ * ainda não tem autenticação confirmada), um POST não autenticado de
+ * `subscription_canceled` NUNCA deve conseguir revogar acesso sozinho. O
+ * usuário perde acesso naturalmente quando `current_period_end` expirar sem
+ * uma renovação confirmada (ver `getSubscriptionAccessStatus` em access.ts —
+ * "active" já nega acesso automaticamente após o período expirar).
  */
 export const EVENT_TO_STATUS: Partial<Record<string, SubscriptionStatus>> = {
   order_approved: "active",
   subscription_renewed: "active",
   subscription_late: "past_due",
-  subscription_canceled: "canceled",
   order_refunded: "refunded",
   chargeback: "chargeback",
 };
@@ -372,4 +383,99 @@ export function matchUserIdByEmail(
 export function buildIdempotencyKey(parsed: Pick<ParsedKiwifyWebhook, "eventType" | "orderId" | "subscriptionId">): string | null {
   const id = parsed.orderId ?? parsed.subscriptionId;
   return id ? `${parsed.eventType}:${id}` : null;
+}
+
+/**
+ * Dados de uma venda vindos diretamente da API oficial da Kiwify (fonte de
+ * verdade) — mesmo shape de `KiwifySale` em kiwifyApi.ts, redeclarado aqui só
+ * como tipo para não criar dependência de runtime entre os dois módulos.
+ */
+export interface VerifiedKiwifySale {
+  id: string;
+  status: string | null;
+  productId: string | null;
+  customerEmail: string | null;
+  refundedAt: string | null;
+}
+
+export interface SaleValidationResult {
+  valid: boolean;
+  /** Motivo legível para log — nunca exposto ao chamador do webhook. */
+  reason: string;
+}
+
+/**
+ * Validação cruzada final antes de tocar em `subscriptions` — o núcleo do
+ * hardening: order_id NÃO é segredo (alguém pode conhecer um order_id real
+ * sem ter feito a compra), então "a venda existe" sozinho não é suficiente.
+ * Exige que MÚLTIPLOS campos retornados PELA API (nunca os que vieram no
+ * corpo do webhook) concordem entre si:
+ *
+ *   1. sale.id bate exatamente com o order_id do webhook (defesa extra —
+ *      já é a chave de busca, mas confirmamos mesmo assim);
+ *   2. sale.productId corresponde a KIWIFY_PRODUCT_ID;
+ *   3. sale.customerEmail (normalizado) bate com o Customer.email do webhook
+ *      (normalizado) — impede que alguém que conhece um order_id real de
+ *      OUTRA pessoa direcione o acesso para a própria conta;
+ *   4. o status oficial da venda é consistente com o evento alegado.
+ *
+ * Qualquer divergência = inválido. `subscription_canceled` nunca chega aqui
+ * porque nem está em EVENT_TO_STATUS (ver comentário lá).
+ */
+export function validateSaleForEvent(
+  eventType: string,
+  parsed: Pick<ParsedKiwifyWebhook, "orderId" | "customerEmail">,
+  sale: VerifiedKiwifySale
+): SaleValidationResult {
+  if (sale.id !== parsed.orderId) {
+    return { valid: false, reason: `sale.id retornado ("${sale.id}") não bate com o order_id do webhook ("${parsed.orderId}")` };
+  }
+
+  if (!isAllowedKiwifyProduct(sale.productId)) {
+    return { valid: false, reason: `product_id da venda ("${sale.productId}") não corresponde a KIWIFY_PRODUCT_ID` };
+  }
+
+  if (!sale.customerEmail || !parsed.customerEmail || sale.customerEmail !== parsed.customerEmail) {
+    return {
+      valid: false,
+      reason: `e-mail retornado pela API ("${sale.customerEmail}") não bate com o e-mail do webhook ("${parsed.customerEmail}")`,
+    };
+  }
+
+  switch (eventType) {
+    case "order_approved":
+    case "subscription_renewed":
+      // "paid" é o único valor confirmado (documentação oficial + payloads
+      // reais) para uma venda aprovada/paga.
+      return sale.status === "paid"
+        ? { valid: true, reason: "status da venda confirma pagamento (paid)" }
+        : { valid: false, reason: `status da venda ("${sale.status}") não é "paid"` };
+
+    case "order_refunded":
+      // Confirmado nos payloads reais: order_status "refunded" para reembolso.
+      // refunded_at preenchido é corroboração adicional (também no schema oficial).
+      return sale.status === "refunded" || Boolean(sale.refundedAt)
+        ? { valid: true, reason: "status/refunded_at da venda confirmam reembolso" }
+        : { valid: false, reason: `venda não confirma reembolso (status="${sale.status}", refunded_at="${sale.refundedAt}")` };
+
+    case "chargeback":
+      // Confirmado no payload real: order_status "chargedback" para chargeback.
+      return sale.status === "chargedback"
+        ? { valid: true, reason: "status da venda confirma chargeback (chargedback)" }
+        : { valid: false, reason: `status da venda ("${sale.status}") não confirma chargeback` };
+
+    case "subscription_late":
+      // A API de Vendas não expõe "waiting_payment" (esse é um status de
+      // ASSINATURA, não de venda/pedido, e não há endpoint oficial de
+      // assinatura). Melhor esforço documentado: só aceitamos se o status da
+      // venda associada NÃO for "paid" — isto é, algo saiu diferente do
+      // fluxo normal de pagamento aprovado. Se vier "paid" mesmo assim
+      // (evento inconsistente), falha fechado.
+      return sale.status && sale.status !== "paid"
+        ? { valid: true, reason: `status da venda ("${sale.status}") indica cobrança não concluída — compatível com atraso` }
+        : { valid: false, reason: `status da venda ("${sale.status}") não confirma cobrança em atraso` };
+
+    default:
+      return { valid: false, reason: `evento "${eventType}" não tem regra de validação server-to-server definida` };
+  }
 }

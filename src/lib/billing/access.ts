@@ -19,6 +19,8 @@ function getPastDueGraceDays(): number {
 export type AccessReason =
   | "no_subscription"
   | "active"
+  | "active_period_ended"
+  | "active_no_period_info"
   | "past_due_within_grace"
   | "past_due_grace_expired"
   | "canceled_within_paid_period"
@@ -53,8 +55,17 @@ export function getSubscriptionAccessStatus(
   const status: SubscriptionStatus = subscription.status;
 
   switch (status) {
-    case "active":
-      return { granted: true, reason: "active" };
+    case "active": {
+      // "active" significa "pago até current_period_end", não "liberado para
+      // sempre" — sem isso, um usuário que nunca mais renova (nenhum webhook
+      // confirmado depois do primeiro pagamento) ficaria com acesso eterno.
+      // Sem informação de período, o padrão é seguro (nega) como em "canceled".
+      if (!subscription.current_period_end) return { granted: false, reason: "active_no_period_info" };
+      const periodEnd = new Date(subscription.current_period_end);
+      return now < periodEnd
+        ? { granted: true, reason: "active" }
+        : { granted: false, reason: "active_period_ended" };
+    }
 
     case "past_due": {
       const since = subscription.past_due_since ? new Date(subscription.past_due_since) : now;
