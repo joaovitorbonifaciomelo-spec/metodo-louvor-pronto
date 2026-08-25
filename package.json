@@ -17,7 +17,8 @@
     "process:brand-assets": "node scripts/process-brand-assets.js",
     "audit:completeness": "tsx scripts/audit-catalog-completeness.ts",
     "mark:review-required": "tsx scripts/mark-review-required.ts",
-    "enrich:youtube": "tsx scripts/enrich-youtube.ts"
+    "enrich:youtube": "tsx scripts/enrich-youtube.ts",
+    "kiwify:find-product": "tsx scripts/kiwify-find-product.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.2",
