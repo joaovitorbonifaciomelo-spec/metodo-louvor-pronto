@@ -135,7 +135,7 @@ export function AuthForm({ mode }: AuthFormProps) {
       )}
 
       <Button type="submit" disabled={loading}>
-        {loading ? "Aguarde…" : mode === "signup" ? "Criar conta grátis" : "Entrar"}
+        {loading ? "Aguarde…" : mode === "signup" ? "Criar conta" : "Entrar"}
       </Button>
 
       <div className="flex items-center gap-3 text-xs text-base-400">

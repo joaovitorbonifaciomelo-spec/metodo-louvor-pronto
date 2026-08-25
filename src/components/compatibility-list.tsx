@@ -72,20 +72,23 @@ export function CompatibilityList({
           </div>
 
           {reasons.length > 0 && (
-            <ul className="flex flex-col gap-1.5">
-              {reasons.map((reason, i) => (
-                <li
-                  key={i}
-                  className={cn(
-                    "flex items-start gap-1.5 text-[13px] leading-snug",
-                    reason.kind === "positive" ? "text-base-300" : "text-amber-400"
-                  )}
-                >
-                  <span className="shrink-0">{reason.kind === "positive" ? "✓" : "⚠"}</span>
-                  <span>{reason.text}</span>
-                </li>
-              ))}
-            </ul>
+            <div className="flex flex-col gap-1.5">
+              <span className="text-xs font-medium text-base-400">Por que combina:</span>
+              <ul className="flex flex-col gap-1.5">
+                {reasons.map((reason, i) => (
+                  <li
+                    key={i}
+                    className={cn(
+                      "flex items-start gap-1.5 text-[13px] leading-snug",
+                      reason.kind === "positive" ? "text-base-300" : "text-amber-400"
+                    )}
+                  >
+                    <span className="shrink-0">{reason.kind === "positive" ? "✓" : "⚠"}</span>
+                    <span>{reason.text}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
 
           {(song.key || song.moments[0]) && (
@@ -100,7 +103,7 @@ export function CompatibilityList({
             <a
               href={song.youtubeUrl}
               target="_blank"
-              rel="noreferrer"
+              rel="noopener noreferrer"
               className="flex w-fit items-center gap-1.5 text-xs font-medium text-base-300 hover:text-accent"
             >
               <YoutubeIcon />

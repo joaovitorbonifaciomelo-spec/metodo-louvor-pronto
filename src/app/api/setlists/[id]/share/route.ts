@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { requireUser } from "@/lib/auth/apiGuards";
+import { requireActiveAccess } from "@/lib/auth/apiGuards";
 import { trackServer } from "@/lib/analytics/trackServer";
 import { slugify, randomSlugSuffix } from "@/lib/utils";
 
 /** Gera (ou reaproveita) o link público de compartilhamento (seção 19). */
 export async function POST(_request: Request, { params }: { params: { id: string } }) {
-  const guard = await requireUser();
+  const guard = await requireActiveAccess();
   if (!guard.ok) return guard.response;
 
   const supabase = createClient();

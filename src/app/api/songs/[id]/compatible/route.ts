@@ -1,30 +1,38 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { getUserIdOnly } from "@/lib/auth/session";
+import { getAccessInfo } from "@/lib/auth/session";
 import { trackServer } from "@/lib/analytics/trackServer";
 import { songFromRow, type SongRow } from "@/types/song";
 import { calculateSongCompatibility } from "@/lib/recommendation/compatibility";
 import { generateCompatibilityReasons } from "@/lib/recommendation/reasons";
 
 /**
+ * Sem assinatura ativa (inclusive visitante não logado, para a demo pública
+ * pré-login — seção "Demonstração pública"), o resultado é limitado a uma
+ * amostra pequena. Não é um plano grátis: é só a vitrine antes de assinar.
+ */
+const DEMO_RESULT_LIMIT = 3;
+
+/**
  * "Quais louvores combinam?" / medleys sugeridos (seções 5-6). Determinístico
  * — sem chamada a IA.
  *
- * Performance: a música base e o catálogo são buscados em paralelo (não
- * dependem um do outro — a query do catálogo só precisa do :id da URL), e o
- * evento de analytics não bloqueia a resposta (fire-and-forget), tirando
- * 3 round-trips sequenciais ao Supabase do caminho crítico.
+ * Performance: música base, catálogo e informação de acesso são buscados em
+ * paralelo (nenhum depende do outro), e o evento de analytics não bloqueia a
+ * resposta (fire-and-forget).
  */
 export async function GET(request: Request, { params }: { params: { id: string } }) {
   const { searchParams } = new URL(request.url);
-  const limit = Math.min(20, Math.max(1, Number(searchParams.get("limit") ?? "5") || 5));
+  const requestedLimit = Math.min(20, Math.max(1, Number(searchParams.get("limit") ?? "5") || 5));
 
   const supabase = createClient();
 
-  const [{ data: baseRow, error: baseError }, { data: catalogRows, error: catalogError }] = await Promise.all([
-    supabase.from("songs").select("*").eq("id", params.id).single(),
-    supabase.from("songs").select("*").eq("active", true).neq("id", params.id).limit(500),
-  ]);
+  const [{ data: baseRow, error: baseError }, { data: catalogRows, error: catalogError }, accessInfo] =
+    await Promise.all([
+      supabase.from("songs").select("*").eq("id", params.id).single(),
+      supabase.from("songs").select("*").eq("active", true).neq("id", params.id).limit(500),
+      getAccessInfo(),
+    ]);
 
   if (baseError || !baseRow) {
     return NextResponse.json({ error: "Música base não encontrada." }, { status: 404 });
@@ -36,7 +44,10 @@ export async function GET(request: Request, { params }: { params: { id: string }
   const base = songFromRow(baseRow as SongRow);
   const candidates = ((catalogRows ?? []) as SongRow[]).map(songFromRow);
 
-  const results = candidates
+  const entitled = accessInfo.access.granted;
+  const limit = entitled ? requestedLimit : Math.min(requestedLimit, DEMO_RESULT_LIMIT);
+
+  const sorted = candidates
     .map((candidate) => {
       const { score, breakdown } = calculateSongCompatibility(base, candidate);
       return {
@@ -45,12 +56,17 @@ export async function GET(request: Request, { params }: { params: { id: string }
         reasons: generateCompatibilityReasons(base, candidate, breakdown),
       };
     })
-    .sort((a, b) => b.compatibility - a.compatibility)
-    .slice(0, limit);
+    .sort((a, b) => b.compatibility - a.compatibility);
 
-  void getUserIdOnly()
-    .then((userId) => trackServer(supabase, "recommendation_generated", { songId: base.id, resultCount: results.length }, userId))
-    .catch(() => undefined);
+  const results = sorted.slice(0, limit);
+  const lockedCount = entitled ? 0 : Math.max(0, sorted.length - results.length);
 
-  return NextResponse.json({ base, results });
+  void trackServer(
+    supabase,
+    "recommendation_generated",
+    { songId: base.id, resultCount: results.length },
+    accessInfo.userId
+  ).catch(() => undefined);
+
+  return NextResponse.json({ base, results, entitled, lockedCount });
 }

@@ -18,7 +18,7 @@ export default function LandingPage() {
             href="/signup"
             className="rounded-lg bg-accent px-3 py-2 font-medium text-accent-fg hover:bg-accent/90 sm:px-3.5"
           >
-            Testar grátis
+            Começar agora
           </Link>
         </nav>
       </header>

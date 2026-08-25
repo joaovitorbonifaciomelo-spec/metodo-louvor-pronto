@@ -62,7 +62,7 @@ export function BuscarClient() {
           </p>
           <CompatibilityList
             results={results}
-            primaryActionLabel="Criar repertório com esta música"
+            primaryActionLabel="Usar no repertório"
             onPrimaryAction={handleCreateSetlist}
           />
           {results.length > 0 && results.length === limit && limit < 15 && (

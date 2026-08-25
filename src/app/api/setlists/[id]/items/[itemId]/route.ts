@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { requireUser } from "@/lib/auth/apiGuards";
+import { requireActiveAccess } from "@/lib/auth/apiGuards";
 import { trackServer } from "@/lib/analytics/trackServer";
 
 const updateSchema = z.object({
@@ -17,7 +17,7 @@ export async function PATCH(
   request: Request,
   { params }: { params: { id: string; itemId: string } }
 ) {
-  const guard = await requireUser();
+  const guard = await requireActiveAccess();
   if (!guard.ok) return guard.response;
 
   const json = await request.json().catch(() => null);
@@ -52,7 +52,7 @@ export async function PATCH(
 
 /** Remover música do repertório (seção 16). */
 export async function DELETE(_request: Request, { params }: { params: { id: string; itemId: string } }) {
-  const guard = await requireUser();
+  const guard = await requireActiveAccess();
   if (!guard.ok) return guard.response;
 
   const supabase = createClient();

@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { requireUser } from "@/lib/auth/apiGuards";
+import { requireActiveAccess } from "@/lib/auth/apiGuards";
 import { loadSetlistWithItems } from "@/lib/setlists/loadSetlist";
 import { SERVICE_TYPES, TEAM_LEVELS } from "@/types/setlist";
 
 export async function GET(_request: Request, { params }: { params: { id: string } }) {
+  const guard = await requireActiveAccess();
+  if (!guard.ok) return guard.response;
+
   const supabase = createClient();
   const result = await loadSetlistWithItems(supabase, params.id);
   if (!result) return NextResponse.json({ error: "Culto não encontrado." }, { status: 404 });
@@ -21,7 +24,7 @@ const updateSchema = z.object({
 });
 
 export async function PATCH(request: Request, { params }: { params: { id: string } }) {
-  const guard = await requireUser();
+  const guard = await requireActiveAccess();
   if (!guard.ok) return guard.response;
 
   const json = await request.json().catch(() => null);

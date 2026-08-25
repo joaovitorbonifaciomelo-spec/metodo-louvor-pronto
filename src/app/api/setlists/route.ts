@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { requireUser } from "@/lib/auth/apiGuards";
+import { requireActiveAccess } from "@/lib/auth/apiGuards";
 import { trackServer } from "@/lib/analytics/trackServer";
-import { canCreateSetlist, type PlanId } from "@/lib/config/plans";
 import { setlistFromRow } from "@/lib/setlists/loadSetlist";
 import { SERVICE_TYPES, TEAM_LEVELS } from "@/types/setlist";
 import { MOMENTS } from "@/types/song";
@@ -11,7 +10,7 @@ import type { SetlistRow } from "@/types/database";
 
 /** "Meus Cultos" (seção 18): lista os repertórios salvos do usuário. */
 export async function GET() {
-  const guard = await requireUser();
+  const guard = await requireActiveAccess();
   if (!guard.ok) return guard.response;
 
   const supabase = createClient();
@@ -53,7 +52,7 @@ const createSetlistSchema = z.object({
 
 /** Salva um repertório escolhido/editado pelo usuário (seções 15-16). */
 export async function POST(request: Request) {
-  const guard = await requireUser();
+  const guard = await requireActiveAccess();
   if (!guard.ok) return guard.response;
 
   const json = await request.json().catch(() => null);
@@ -63,20 +62,6 @@ export async function POST(request: Request) {
   }
 
   const supabase = createClient();
-
-  const { data: profile } = await supabase.from("profiles").select("plan").eq("id", guard.userId).single();
-  const { count: existingCount } = await supabase
-    .from("setlists")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", guard.userId);
-
-  if (!canCreateSetlist((profile?.plan as PlanId) ?? "free", existingCount ?? 0)) {
-    return NextResponse.json(
-      { error: "Limite de repertórios do plano Free atingido. Faça upgrade para o Pro para criar mais." },
-      { status: 403 }
-    );
-  }
-
   const { name, serviceType, theme, serviceDate, teamLevel, items } = parsed.data;
 
   const { data: setlistRow, error: setlistError } = await supabase

@@ -46,8 +46,9 @@ Duas funcionalidades centrais:
   (`src/types/song.ts`, `src/types/setlist.ts`, `src/types/database.ts`) são
   mapeados manualmente nas queries. Evita a fricção de manter um `Database`
   100% fiel ao schema sem gerar tipos via CLI conectada a um projeto real.
-- **Billing desacoplado**: `src/lib/config/plans.ts` define limites do plano
-  Free/Pro; não há integração real de pagamento (ver seção Billing abaixo).
+- **Acesso por assinatura, sem plano Free**: `src/lib/billing/access.ts` é o
+  único lugar que decide se um usuário tem acesso ao SaaS — não há período de
+  teste nem limite de plano gratuito (ver seção Billing abaixo).
 
 ## Estrutura do banco (Supabase/Postgres)
 
@@ -58,19 +59,22 @@ Migrations em `supabase/migrations/`, aplicadas em ordem:
 | `0001_extensions_and_tables.sql` | extensões (`pgcrypto`, `pg_trgm`) + todas as tabelas |
 | `0002_indexes_and_search.sql` | índices GIN/trigram + função `search_songs()` |
 | `0003_rls_policies.sql` | Row Level Security de todas as tabelas |
-| `0004_functions_and_triggers.sql` | `updated_at` automático + criação de profile/subscription no signup |
+| `0004_functions_and_triggers.sql` | `updated_at` automático + criação de profile no signup |
+| `0005_catalog_enrichment.sql` | `review_required` + metadados de enriquecimento via YouTube |
+| `0006_billing_subscriptions.sql` | remove o modelo Free/Pro; `subscriptions` passa a modelar status de assinatura real (Kiwify) + `webhook_events` para idempotência |
 
 Tabelas principais:
 
 ```
-profiles           — estende auth.users (role, plan, church_id)
+profiles           — estende auth.users (role, church_id)
 churches           — "minha igreja" (seção 21)
 songs              — catálogo (metadados apenas, sem letra/cifra)
 song_requests       — pedidos de músicas que não existem no catálogo
 setlists            — cultos salvos
 setlist_items        — músicas de cada culto (posição, tom, trava, etc.)
 user_song_library    — músicas que o usuário/igreja já toca
-subscriptions        — plano do usuário (desacoplado de billing real)
+subscriptions        — status real de assinatura (inactive/active/past_due/canceled/refunded/chargeback)
+webhook_events       — log + idempotência dos webhooks de pagamento recebidos
 analytics_events      — eventos internos (seção 36)
 ```
 
@@ -262,24 +266,44 @@ runtime).
 quase sempre env var ausente/incorreta na Vercel — o servidor loga no console
 (nunca o valor, só o nome da variável faltando) via `src/lib/supabase/env.ts`.
 
-## Billing (seção 26)
+## Billing
 
-`src/lib/config/plans.ts` define os limites conceituais de Free/Pro
-(`canCreateSetlist`, `canSearchToday`) e a tabela `subscriptions` já existe no
-schema. **Nenhum provider de pagamento está integrado** — não há credenciais
-inventadas. Para plugar Stripe depois:
+Sem plano Free e sem trial: o SaaS só libera acesso para quem tem assinatura
+`active` (ver `src/lib/billing/access.ts` — único ponto de decisão de acesso,
+usado tanto na página `(app)/layout.tsx` quanto em cada rota de API privada
+via `requireActiveAccess`). `role = 'admin'` e ambiente fora de produção
+(`NODE_ENV !== "production"`) sempre têm acesso, sem hardcodar e-mail algum.
 
-1. Configurar `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` / `NEXT_PUBLIC_STRIPE_PRICE_ID_PRO`.
-2. Criar uma rota `api/billing/webhook` que atualiza `subscriptions` (plan/status/current_period_end).
-3. `BILLING_PROVIDER_CONFIGURED` (em `plans.ts`) já detecta se as credenciais existem.
+Provider inicial: **Kiwify** (`src/lib/config/billing.ts` centraliza a config;
+`src/lib/billing/kiwify.ts` mapeia os eventos reais da Kiwify e valida o
+webhook). Para ativar:
+
+1. Criar o produto/checkout na Kiwify e configurar `KIWIFY_CHECKOUT_URL`.
+2. Cadastrar um webhook na Kiwify apontando para `/api/webhooks/kiwify`, com
+   todos os triggers marcados, e configurar `KIWIFY_WEBHOOK_TOKEN` com o token
+   gerado.
+3. (Opcional) `KIWIFY_CUSTOMER_PORTAL_URL` para o assinante gerenciar a própria
+   assinatura, e `KIWIFY_PAST_DUE_GRACE_DAYS` para ajustar a tolerância de
+   cobrança atrasada (padrão: 3 dias).
+
+**Ressalva importante**: os nomes dos 10 eventos de webhook da Kiwify
+(`compra_aprovada`, `subscription_renewed`, `subscription_canceled`,
+`subscription_late`, `compra_reembolsada`, `chargeback`, etc.) vêm da
+documentação oficial da API. Já o mecanismo exato de verificação do token e os
+nomes de campo do payload de order/subscription **não estão 100% documentados
+publicamente** — a implementação atual usa a convenção mais comum (token na
+query string da URL do webhook) e extrai campos com múltiplos nomes
+candidatos, mas todo payload recebido é sempre gravado em `webhook_events.raw_payload`
+primeiro. Confira o primeiro webhook de teste real e ajuste
+`src/lib/billing/kiwify.ts` se necessário.
 
 ## O que depende de decisão de negócio
 
-- Preços dos planos Free/Pro.
+- Preço da assinatura (mensal/anual) — nada hardcoded, ver `KIWIFY_CHECKOUT_URL`.
 - Se solicitação de música (seção 20) deve ser aberta a usuários anônimos.
 - Regras de "Minha Igreja" além do MVP (seção 21) — hoje só existe a tabela
   `user_song_library`/`churches`, sem UI dedicada.
-- Provider de pagamento (Stripe ou outro).
+- Regras comerciais exatas para reembolso/chargeback além de revogar o acesso.
 
 ## Catálogo inicial
 

@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
-import type { ProfileRow } from "@/types/database";
+import { canAccessApp, resolveAccess, type AccessDecision } from "@/lib/billing/access";
+import type { ProfileRow, SubscriptionRow } from "@/types/database";
 
 export interface SessionInfo {
   userId: string | null;
@@ -23,6 +24,39 @@ export async function getSessionInfo(): Promise<SessionInfo> {
 export async function isAdmin(): Promise<boolean> {
   const { profile } = await getSessionInfo();
   return profile?.role === "admin";
+}
+
+export interface AccessInfo extends SessionInfo {
+  subscription: SubscriptionRow | null;
+  access: AccessDecision;
+}
+
+/**
+ * Sessão + decisão de acesso, num só lugar (ver src/lib/billing/access.ts).
+ * Único ponto que outras rotas/páginas devem consultar para saber se o
+ * usuário pode usar o SaaS — nunca reimplementar essa checagem localmente.
+ *
+ * Um usuário pode ter mais de uma assinatura (ver migration 0006 — `user_id`
+ * não é unique em `subscriptions`), então buscamos todas e deixamos
+ * `resolveAccess` decidir: o acesso é concedido se QUALQUER uma delas
+ * satisfizer getSubscriptionAccessStatus agora, não só a mais recente.
+ */
+export async function getAccessInfo(): Promise<AccessInfo> {
+  const session = await getSessionInfo();
+  if (!session.userId) {
+    return { ...session, subscription: null, access: canAccessApp(null, null) };
+  }
+
+  const supabase = createClient();
+  const { data } = await supabase
+    .from("subscriptions")
+    .select("*")
+    .eq("user_id", session.userId)
+    .order("updated_at", { ascending: false });
+
+  const subscriptions = (data as unknown as SubscriptionRow[] | null) ?? [];
+  const { subscription, access } = resolveAccess(session.profile?.role, subscriptions);
+  return { ...session, subscription, access };
 }
 
 /**

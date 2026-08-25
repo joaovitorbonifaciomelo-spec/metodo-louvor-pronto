@@ -1,14 +1,20 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { getSessionInfo } from "@/lib/auth/session";
+import { getAccessInfo } from "@/lib/auth/session";
 import { product } from "@/lib/config/product";
 import { SignOutButton } from "@/components/sign-out-button";
 import { BottomNav } from "@/components/bottom-nav";
 import { BrandLogo } from "@/components/brand-logo";
 
+/**
+ * Único ponto de checagem de acesso para toda a área privada do app (todas as
+ * páginas sob (app) passam por aqui). Não basta para as rotas de API — essas
+ * têm sua própria checagem via requireActiveAccess (ver src/lib/auth/apiGuards.ts).
+ */
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  const { userId, email } = await getSessionInfo();
+  const { userId, email, access } = await getAccessInfo();
   if (!userId) redirect("/login");
+  if (!access.granted) redirect("/assinar");
 
   return (
     <div className="min-h-screen">
@@ -30,6 +36,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               className="ml-1 rounded-lg bg-accent px-3.5 py-2 font-medium text-accent-fg hover:bg-accent/90"
             >
               Novo Culto
+            </Link>
+            <Link href="/conta" className="rounded-lg px-3 py-2 text-base-300 hover:bg-base-800 hover:text-base-100">
+              Conta
             </Link>
           </nav>
           <div className="hidden items-center gap-3 text-xs text-base-400 sm:flex">

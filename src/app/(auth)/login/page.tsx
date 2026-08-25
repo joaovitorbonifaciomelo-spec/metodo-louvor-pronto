@@ -17,7 +17,7 @@ export default function LoginPage() {
         <p className="mt-6 text-center text-sm text-base-400">
           Não tem conta?{" "}
           <Link href="/signup" className="text-accent">
-            Criar conta grátis
+            Criar conta
           </Link>
         </p>
       </div>

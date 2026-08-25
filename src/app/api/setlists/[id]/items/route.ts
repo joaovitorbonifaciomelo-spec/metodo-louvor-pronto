@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { requireUser } from "@/lib/auth/apiGuards";
+import { requireActiveAccess } from "@/lib/auth/apiGuards";
 import { trackServer } from "@/lib/analytics/trackServer";
 import { MOMENTS } from "@/types/song";
 
@@ -15,7 +15,7 @@ const addItemSchema = z.object({
 
 /** Adiciona uma música ao final do repertório (seção 16 "adicionar outra"). */
 export async function POST(request: Request, { params }: { params: { id: string } }) {
-  const guard = await requireUser();
+  const guard = await requireActiveAccess();
   if (!guard.ok) return guard.response;
 
   const json = await request.json().catch(() => null);
@@ -63,7 +63,7 @@ const reorderSchema = z.object({
 
 /** Reordenar músicas do repertório (seção 16 "mover posição"). */
 export async function PATCH(request: Request, { params }: { params: { id: string } }) {
-  const guard = await requireUser();
+  const guard = await requireActiveAccess();
   if (!guard.ok) return guard.response;
 
   const json = await request.json().catch(() => null);

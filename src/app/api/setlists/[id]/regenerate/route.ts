@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { requireUser } from "@/lib/auth/apiGuards";
+import { requireActiveAccess } from "@/lib/auth/apiGuards";
 import { loadSetlistWithItems } from "@/lib/setlists/loadSetlist";
 import { loadUserSetlistHistory } from "@/lib/setlists/loadHistory";
 import { generateSetlist } from "@/lib/recommendation/generateSetlist";
@@ -11,7 +11,7 @@ import { songFromRow, type SongRow } from "@/types/song";
  * as demais são substituídas por uma nova sugestão compatível.
  */
 export async function POST(_request: Request, { params }: { params: { id: string } }) {
-  const guard = await requireUser();
+  const guard = await requireActiveAccess();
   if (!guard.ok) return guard.response;
 
   const supabase = createClient();

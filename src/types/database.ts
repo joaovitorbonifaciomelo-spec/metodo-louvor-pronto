@@ -4,7 +4,6 @@ export interface ProfileRow {
   id: string;
   display_name: string | null;
   role: "user" | "admin";
-  plan: "free" | "pro";
   church_id: string | null;
   created_at: string;
   updated_at: string;
@@ -61,17 +60,35 @@ export interface UserSongLibraryRow {
   created_at: string;
 }
 
+export type SubscriptionStatus = "inactive" | "active" | "past_due" | "canceled" | "refunded" | "chargeback";
+
 export interface SubscriptionRow {
   id: string;
-  user_id: string;
-  plan: "free" | "pro";
-  status: "active" | "canceled" | "past_due";
+  user_id: string | null;
+  customer_email: string | null;
+  status: SubscriptionStatus;
   provider: string | null;
   provider_customer_id: string | null;
   provider_subscription_id: string | null;
+  provider_product_id: string | null;
+  started_at: string | null;
+  current_period_start: string | null;
   current_period_end: string | null;
+  past_due_since: string | null;
+  canceled_at: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface WebhookEventRow {
+  id: string;
+  provider: string;
+  event_type: string;
+  idempotency_key: string;
+  raw_payload: Record<string, unknown>;
+  received_at: string;
+  processed_at: string | null;
+  processing_error: string | null;
 }
 
 export interface AnalyticsEventRow {
@@ -119,8 +136,13 @@ export interface Database {
       };
       subscriptions: {
         Row: SubscriptionRow;
-        Insert: Partial<SubscriptionRow> & { user_id: string };
+        Insert: Partial<SubscriptionRow>;
         Update: Partial<SubscriptionRow>;
+      };
+      webhook_events: {
+        Row: WebhookEventRow;
+        Insert: Partial<WebhookEventRow> & { provider: string; event_type: string; idempotency_key: string; raw_payload: Record<string, unknown> };
+        Update: Partial<WebhookEventRow>;
       };
       analytics_events: {
         Row: AnalyticsEventRow;

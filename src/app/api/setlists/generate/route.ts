@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { requireUser } from "@/lib/auth/apiGuards";
+import { requireActiveAccess } from "@/lib/auth/apiGuards";
 import { songFromRow, type SongRow } from "@/types/song";
 import { generateSetlist } from "@/lib/recommendation/generateSetlist";
 import { loadUserSetlistHistory } from "@/lib/setlists/loadHistory";
@@ -22,7 +22,7 @@ const bodySchema = z.object({
 
 /** Gera 2-3 propostas de repertório (seção 15). Não persiste nada ainda. */
 export async function POST(request: Request) {
-  const guard = await requireUser();
+  const guard = await requireActiveAccess();
   if (!guard.ok) return guard.response;
 
   const json = await request.json().catch(() => null);

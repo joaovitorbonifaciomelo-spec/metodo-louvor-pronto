@@ -10,7 +10,7 @@ export default function SignupPage() {
           <Link href="/" aria-label="Método Louvor Pronto">
             <BrandLogo variant="full" priority className="h-12" />
           </Link>
-          <h1 className="mt-5 text-xl font-semibold text-base-50">Criar conta grátis</h1>
+          <h1 className="mt-5 text-xl font-semibold text-base-50">Criar conta</h1>
           <p className="mt-1 text-sm text-base-400">Comece a montar repertórios melhores em minutos.</p>
         </div>
         <AuthForm mode="signup" />
