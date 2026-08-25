@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { track } from "@/lib/analytics/track";
+import { trackMetaEvent } from "@/lib/analytics/metaPixel";
 import { friendlyAuthError } from "@/lib/auth/friendlyError";
 
 interface AuthFormProps {
@@ -37,6 +38,9 @@ export function AuthForm({ mode }: AuthFormProps) {
           return;
         }
         track("signup", { method: "password" });
+        // Cadastro realmente concluído (signUp sem erro) — nunca ao abrir /signup
+        // ou apenas clicar em "Criar conta" antes de saber se deu certo.
+        trackMetaEvent("CompleteRegistration");
 
         // Se a confirmação de email estiver habilitada no projeto Supabase, ainda não há sessão aqui.
         if (!data.session) {

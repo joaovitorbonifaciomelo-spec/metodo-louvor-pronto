@@ -1,22 +1,11 @@
+"use client";
+
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { trackMetaEvent } from "@/lib/analytics/metaPixel";
+import { primaryCtaHref, type CtaAccessState } from "@/lib/landing/cta-href";
 
-export interface CtaAccessState {
-  /** Há uma sessão logada (independente de ter assinatura ativa). */
-  loggedIn: boolean;
-  /** Assinatura ativa (ou bypass admin/dev) — mesmo valor de access.granted. */
-  granted: boolean;
-}
-
-/**
- * Único lugar que decide para onde os CTAs de conversão da landing apontam.
- * Nunca linkar direto para KIWIFY_CHECKOUT_URL aqui — isso é responsabilidade
- * exclusiva de /assinar (ver src/lib/config/billing.ts).
- */
-export function primaryCtaHref({ loggedIn, granted }: CtaAccessState): string {
-  if (!loggedIn) return "/signup";
-  return granted ? "/buscar" : "/assinar";
-}
+export type { CtaAccessState };
 
 const BASE_CLASSES =
   "inline-flex min-h-[48px] items-center justify-center rounded-xl bg-accent px-6 text-base font-semibold text-accent-fg transition-colors hover:bg-accent/90";
@@ -31,9 +20,17 @@ export function PrimaryCta({
   className?: string;
 }) {
   const href = primaryCtaHref(access);
-  const text = access.loggedIn && access.granted ? "Abrir Louvor Pronto" : label;
+  const isAppEntry = access.loggedIn && access.granted;
+  const text = isAppEntry ? "Abrir Louvor Pronto" : label;
+
+  function handleClick() {
+    // Assinante entrando no app não é intenção de aquisição — não conta como Lead.
+    if (isAppEntry) return;
+    trackMetaEvent("Lead", { content_name: label });
+  }
+
   return (
-    <Link href={href} className={cn(BASE_CLASSES, className)}>
+    <Link href={href} className={cn(BASE_CLASSES, className)} onClick={handleClick}>
       {text}
     </Link>
   );
