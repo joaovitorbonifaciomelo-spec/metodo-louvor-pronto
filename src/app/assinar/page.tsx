@@ -6,17 +6,24 @@ import { KIWIFY_CHECKOUT_URL, KIWIFY_CUSTOMER_PORTAL_URL } from "@/lib/config/bi
 import { BrandLogo } from "@/components/brand-logo";
 import { SignOutButton } from "@/components/sign-out-button";
 import { product } from "@/lib/config/product";
+import { appendUtmToUrl, type UtmData } from "@/lib/marketing/utm";
+import { getStoredUtm } from "@/lib/marketing/utmServer";
 
 /**
  * Prefill oficialmente suportado pela Kiwify via query string do checkout
  * (?email=&name=) — reduz digitação e ajuda a associar a compra à conta.
  * Ver https://ajuda.kiwify.com.br/pt-br/article/como-preencher-os-campos-do-checkout-pela-url-de7ezo/
+ *
+ * Os utm_* (e fbclid, se houver) vêm da atribuição first-touch capturada na
+ * entrada do funil (ver src/lib/marketing) — mesmos nomes que a Kiwify já lê
+ * em TrackingParameters, sem remapeamento.
  */
-function buildCheckoutUrl(email: string | null, displayName: string | null): string | null {
+function buildCheckoutUrl(email: string | null, displayName: string | null, utm: UtmData): string | null {
   if (!KIWIFY_CHECKOUT_URL) return null;
   const url = new URL(KIWIFY_CHECKOUT_URL);
   if (email) url.searchParams.set("email", email);
   if (displayName) url.searchParams.set("name", displayName);
+  appendUtmToUrl(url, utm);
   return url.toString();
 }
 
@@ -52,7 +59,7 @@ export default async function AssinarPage() {
   // real vem direto do status da assinatura (sem bypass de admin/dev).
   const reason = getSubscriptionAccessStatus(subscription).reason;
   const copy = STATUS_COPY[reason];
-  const checkoutUrl = buildCheckoutUrl(email, profile?.display_name ?? null);
+  const checkoutUrl = buildCheckoutUrl(email, profile?.display_name ?? null, getStoredUtm());
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-8 px-4 py-10 sm:px-6">

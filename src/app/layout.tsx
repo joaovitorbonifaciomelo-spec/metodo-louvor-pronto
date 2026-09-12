@@ -3,6 +3,7 @@ import "./globals.css";
 import { product } from "@/lib/config/product";
 import { ToastProvider } from "@/components/ui/toast-provider";
 import { MetaPixel } from "@/components/analytics/meta-pixel";
+import { UtmCapture } from "@/components/analytics/utm-capture";
 
 export const metadata: Metadata = {
   title: `${product.name} — ${product.tagline}`,
@@ -15,6 +16,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="pt-BR" className="dark">
       <body className="min-h-screen bg-base-950 font-sans antialiased">
         <MetaPixel />
+        <UtmCapture />
         <ToastProvider>{children}</ToastProvider>
       </body>
     </html>
