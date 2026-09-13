@@ -76,6 +76,15 @@ export interface SubscriptionRow {
   current_period_end: string | null;
   past_due_since: string | null;
   canceled_at: string | null;
+  /** Atribuição first-touch (ver src/app/api/webhooks/kiwify/route.ts) — só
+   * preenchida na criação da assinatura, nunca sobrescrita numa renovação. */
+  utm_source: string | null;
+  utm_medium: string | null;
+  utm_campaign: string | null;
+  utm_content: string | null;
+  utm_term: string | null;
+  kiwify_src: string | null;
+  kiwify_sck: string | null;
   created_at: string;
   updated_at: string;
 }

@@ -272,6 +272,13 @@ interface ExtractedOrderInfo {
   startedAt: string | null;
   periodEnd: string | null;
   eventOccurredAt: string | null;
+  utmSource: string | null;
+  utmMedium: string | null;
+  utmCampaign: string | null;
+  utmContent: string | null;
+  utmTerm: string | null;
+  kiwifySrc: string | null;
+  kiwifySck: string | null;
 }
 
 function readString(...values: unknown[]): string | null {
@@ -279,6 +286,16 @@ function readString(...values: unknown[]): string | null {
     if (typeof v === "string" && v.trim()) return v;
   }
   return null;
+}
+
+/**
+ * Normaliza um valor de TrackingParameters: string vazia/só espaço -> null,
+ * trim no resto. Nunca inventa um valor — só limpa o que a Kiwify já mandou.
+ */
+function normalizeTrackingValue(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed ? trimmed : null;
 }
 
 /**
@@ -306,6 +323,12 @@ export function extractOrderInfo(body: Record<string, unknown>): ExtractedOrderI
   const customer = (body.Customer ?? body.customer ?? {}) as Record<string, unknown>;
   const subscription = (body.Subscription ?? body.subscription ?? {}) as Record<string, unknown>;
   const product = (body.Product ?? body.product ?? {}) as Record<string, unknown>;
+  // Confirmado por inspeção real: todo webhook de venda traz TrackingParameters
+  // no mesmo nível de Product/Customer/Subscription — mas nas vendas reais já
+  // recebidas até agora, todos os 10 campos vieram null (ver auditoria de
+  // atribuição de vendas). Não existe campo de fbclid nessa estrutura — nunca
+  // inventamos um.
+  const tracking = (body.TrackingParameters ?? body.tracking_parameters ?? {}) as Record<string, unknown>;
 
   return {
     orderId: readString(body.order_id, body.id),
@@ -325,6 +348,13 @@ export function extractOrderInfo(body: Record<string, unknown>): ExtractedOrderI
     // de nível raiz), usado como carimbo de tempo do evento (ex.: past_due_since)
     // quando não há um campo mais específico para isso.
     eventOccurredAt: readString(body.updated_at, body.created_at),
+    utmSource: normalizeTrackingValue(tracking.utm_source),
+    utmMedium: normalizeTrackingValue(tracking.utm_medium),
+    utmCampaign: normalizeTrackingValue(tracking.utm_campaign),
+    utmContent: normalizeTrackingValue(tracking.utm_content),
+    utmTerm: normalizeTrackingValue(tracking.utm_term),
+    kiwifySrc: normalizeTrackingValue(tracking.src),
+    kiwifySck: normalizeTrackingValue(tracking.sck),
   };
 }
 
@@ -344,6 +374,13 @@ export interface ParsedKiwifyWebhook {
   startedAt: string | null;
   currentPeriodEnd: string | null;
   eventOccurredAt: string | null;
+  utmSource: string | null;
+  utmMedium: string | null;
+  utmCampaign: string | null;
+  utmContent: string | null;
+  utmTerm: string | null;
+  kiwifySrc: string | null;
+  kiwifySck: string | null;
 }
 
 /**
@@ -368,6 +405,13 @@ export function parseKiwifyWebhook(body: Record<string, unknown>): ParsedKiwifyW
     startedAt: info.startedAt,
     currentPeriodEnd: info.periodEnd,
     eventOccurredAt: info.eventOccurredAt,
+    utmSource: info.utmSource,
+    utmMedium: info.utmMedium,
+    utmCampaign: info.utmCampaign,
+    utmContent: info.utmContent,
+    utmTerm: info.utmTerm,
+    kiwifySrc: info.kiwifySrc,
+    kiwifySck: info.kiwifySck,
   };
 }
 

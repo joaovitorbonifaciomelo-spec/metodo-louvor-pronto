@@ -319,6 +319,23 @@ async function applySubscriptionEvent(
   if (parsed.subscriptionId) update.provider_subscription_id = parsed.subscriptionId;
   if (parsed.customerId) update.provider_customer_id = parsed.customerId;
   if (parsed.productId) update.provider_product_id = parsed.productId;
+
+  // Atribuição first-touch (ver auditoria de atribuição de vendas): só grava
+  // na CRIAÇÃO da assinatura. Uma renovação (existing != null) nunca deve
+  // sobrescrever a origem original, mesmo que o evento traga
+  // TrackingParameters diferente ou nulo — por isso este bloco fica fora do
+  // "if (existing) update(...) else insert(...)" abaixo, dentro do
+  // `!existing` que já decide o resto dos campos "só na criação".
+  if (!existing) {
+    if (parsed.utmSource) update.utm_source = parsed.utmSource;
+    if (parsed.utmMedium) update.utm_medium = parsed.utmMedium;
+    if (parsed.utmCampaign) update.utm_campaign = parsed.utmCampaign;
+    if (parsed.utmContent) update.utm_content = parsed.utmContent;
+    if (parsed.utmTerm) update.utm_term = parsed.utmTerm;
+    if (parsed.kiwifySrc) update.kiwify_src = parsed.kiwifySrc;
+    if (parsed.kiwifySck) update.kiwify_sck = parsed.kiwifySck;
+  }
+
   // Subscription.next_payment representa o fim do ciclo atual mesmo em
   // eventos não-"active" (ex.: subscription_canceled ainda traz esse campo,
   // representando até quando o período já pago vale) — access.ts usa isso

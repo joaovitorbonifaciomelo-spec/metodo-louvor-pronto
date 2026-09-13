@@ -232,6 +232,106 @@ describe("wrapper real ({ url, signature, order }) — pipeline completo continu
   });
 });
 
+describe("parseKiwifyWebhook — TrackingParameters (atribuição de vendas por UTM)", () => {
+  it("extrai utm_source/medium/campaign/content/term + src/sck quando presentes", () => {
+    const payload = baseFixture({
+      webhook_event_type: "order_approved",
+      order_id: "order-utm-1",
+      order_status: "paid",
+      Subscription: { id: "sub-utm-1", status: "active" },
+      subscription_id: "sub-utm-1",
+      TrackingParameters: {
+        utm_source: "meta",
+        utm_medium: "paid_social",
+        utm_campaign: "LP | Dor | Teste 02",
+        utm_content: "Dor V1",
+        utm_term: "Amplo",
+        src: "src-abc",
+        sck: "sck-xyz",
+        s1: null,
+        s2: null,
+        s3: null,
+      },
+    });
+
+    const parsed = parseKiwifyWebhook(payload);
+    expect(parsed.utmSource).toBe("meta");
+    expect(parsed.utmMedium).toBe("paid_social");
+    expect(parsed.utmCampaign).toBe("LP | Dor | Teste 02");
+    expect(parsed.utmContent).toBe("Dor V1");
+    expect(parsed.utmTerm).toBe("Amplo");
+    expect(parsed.kiwifySrc).toBe("src-abc");
+    expect(parsed.kiwifySck).toBe("sck-xyz");
+  });
+
+  it("TrackingParameters com todos os campos null (caso real observado) -> tudo null, sem lançar erro", () => {
+    const payload = baseFixture({
+      webhook_event_type: "order_approved",
+      order_id: "order-utm-null",
+      order_status: "paid",
+      Subscription: { id: "sub-utm-null", status: "active" },
+      subscription_id: "sub-utm-null",
+      TrackingParameters: {
+        s1: null,
+        s2: null,
+        s3: null,
+        sck: null,
+        src: null,
+        utm_term: null,
+        utm_medium: null,
+        utm_source: null,
+        utm_content: null,
+        utm_campaign: null,
+      },
+    });
+
+    const parsed = parseKiwifyWebhook(payload);
+    expect(parsed.utmSource).toBeNull();
+    expect(parsed.utmMedium).toBeNull();
+    expect(parsed.utmCampaign).toBeNull();
+    expect(parsed.utmContent).toBeNull();
+    expect(parsed.utmTerm).toBeNull();
+    expect(parsed.kiwifySrc).toBeNull();
+    expect(parsed.kiwifySck).toBeNull();
+  });
+
+  it("payload sem TrackingParameters nenhum -> tudo null, não quebra o parser", () => {
+    const parsed = parseKiwifyWebhook(ORDER_APPROVED);
+    expect(parsed.utmSource).toBeNull();
+    expect(parsed.utmCampaign).toBeNull();
+    expect(parsed.kiwifySrc).toBeNull();
+  });
+
+  it("string vazia/só espaço em branco vira null (nunca grava lixo)", () => {
+    const payload = baseFixture({
+      webhook_event_type: "order_approved",
+      order_id: "order-utm-blank",
+      Subscription: { id: "sub-utm-blank", status: "active" },
+      subscription_id: "sub-utm-blank",
+      TrackingParameters: { utm_source: "", utm_campaign: "   " },
+    });
+    const parsed = parseKiwifyWebhook(payload);
+    expect(parsed.utmSource).toBeNull();
+    expect(parsed.utmCampaign).toBeNull();
+  });
+
+  it("faz trim em volta do valor, preservando caracteres especiais no meio", () => {
+    const payload = baseFixture({
+      webhook_event_type: "order_approved",
+      order_id: "order-utm-trim",
+      Subscription: { id: "sub-utm-trim", status: "active" },
+      subscription_id: "sub-utm-trim",
+      TrackingParameters: {
+        utm_campaign: "  LP | Dor | Teste 02 (Ação!) ç/ã & 100%  ",
+        utm_content: "  Dor V1 — variação B  ",
+      },
+    });
+    const parsed = parseKiwifyWebhook(payload);
+    expect(parsed.utmCampaign).toBe("LP | Dor | Teste 02 (Ação!) ç/ã & 100%");
+    expect(parsed.utmContent).toBe("Dor V1 — variação B");
+  });
+});
+
 describe("extractSignatureAnywhere (auditoria — query OU body.signature, nunca os dois presumidos iguais)", () => {
   it("encontra a signature na query string (formato dos payloads de teste)", () => {
     const req = new Request("https://app.example.com/api/webhooks/kiwify?signature=abc123");
@@ -329,6 +429,15 @@ describe("parseKiwifyWebhook — mapeamento evento -> status (autoritativo = web
       startedAt: "2026-08-22T19:40:56.040Z",
       currentPeriodEnd: "2026-08-29T19:40:56.040Z",
       eventOccurredAt: "2026-08-25 19:40",
+      // Fixture não tem TrackingParameters (payloads de teste antigos não
+      // traziam esse campo) — tudo null, nunca inventado.
+      utmSource: null,
+      utmMedium: null,
+      utmCampaign: null,
+      utmContent: null,
+      utmTerm: null,
+      kiwifySrc: null,
+      kiwifySck: null,
     });
   });
 });
