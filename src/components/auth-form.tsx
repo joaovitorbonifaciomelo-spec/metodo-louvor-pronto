@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -31,7 +32,14 @@ export function AuthForm({ mode }: AuthFormProps) {
       const supabase = createClient();
 
       if (mode === "signup") {
-        const { data, error: signUpError } = await supabase.auth.signUp({ email, password });
+        const { data, error: signUpError } = await supabase.auth.signUp({
+          email,
+          password,
+          // Mesmo destino do magic link — defesa para se confirmação/recovery
+          // de email voltarem a ser exigidas no futuro (hoje "Confirm email"
+          // está desligado no Supabase, então normalmente já vem com sessão).
+          options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+        });
         if (signUpError) {
           setError(friendlyAuthError(signUpError, "signup"));
           setLoading(false);
@@ -48,13 +56,18 @@ export function AuthForm({ mode }: AuthFormProps) {
           setConfirmEmailSent(true);
           return;
         }
-      } else {
-        const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-        if (signInError) {
-          setError(friendlyAuthError(signInError, "login"));
-          setLoading(false);
-          return;
-        }
+
+        // Sem plano grátis: o destino do signup é a assinatura, não a busca.
+        router.push("/assinar");
+        router.refresh();
+        return;
+      }
+
+      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+      if (signInError) {
+        setError(friendlyAuthError(signInError, "login"));
+        setLoading(false);
+        return;
       }
 
       router.push("/buscar");
@@ -101,7 +114,15 @@ export function AuthForm({ mode }: AuthFormProps) {
   if (confirmEmailSent) {
     return (
       <div className="rounded-xl border border-accent/30 bg-accent/10 p-4 text-sm text-base-100">
-        Enviamos um email de confirmação para <strong>{email}</strong>. Confirme para poder entrar.
+        <p className="font-semibold text-base-50">Confirme seu email para continuar</p>
+        <p className="mt-2">
+          Enviamos um link de confirmação para <strong>{email}</strong>. Abra sua caixa de entrada, clique no link e
+          volte aqui para entrar com sua senha.
+        </p>
+        <p className="mt-2 text-base-300">Não encontrou? Confira a caixa de spam/lixo eletrônico.</p>
+        <Link href="/login" className="mt-3 inline-block text-accent underline">
+          Já confirmou? Entrar
+        </Link>
       </div>
     );
   }
