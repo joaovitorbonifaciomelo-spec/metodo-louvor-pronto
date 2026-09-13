@@ -1,18 +1,18 @@
 # Auditoria de completude do catálogo
 
-Gerado em: 2026-08-25T17:35:19.468Z
+Gerado em: 2026-09-13T04:23:10.450Z
 
 ## Resumo
-- Total de músicas: 200
-- Com artista: 100 (50%)
+- Total de músicas: 463
+- Com artista: 363 (78%)
 - Sem artista: 100
 - Com link do YouTube: 0
-- Sem link do YouTube: 200
-- Possíveis duplicatas (título parecido): 3
+- Sem link do YouTube: 463
+- Possíveis duplicatas (título parecido): 12
 
 ## Distribuição de completude
 - <50%: 100
-- 50-80%: 100
+- 50-80%: 363
 - >80%: 0
 
 ## Músicas sem artista
@@ -118,9 +118,18 @@ Gerado em: 2026-08-25T17:35:19.468Z
 - Yeshua
 
 ## Duplicatas / títulos parecidos para revisão manual
+- "A Bênção" (sem artista) vs "Minha Bênção" (Cassiane) — 100%
+- "A Presença" (sem artista) vs "Em Tua Presença" (Nívea Soares) — 100%
+- "Minha Recompensa" (Dunamis Music) vs "Recompensa" (Cassiane) — 100%
+- "O Teu Amor" (Kemuel) vs "Seu Amor" (Isaías Saad / LUDI) — 100%
 - "Só Tu És Santo" (MORADA) vs "Tu És Santo" (sem artista) — 75%
 - "Amigo Espírito Santo" (Cassiane) vs "Santo Espírito" (sem artista) — 67%
+- "Andando Sobre As Águas" (Renascer Praise) vs "Sobre as Águas" (Trazendo a Arca) — 67%
 - "Ele Vem" (sem artista) vs "Quando Ele Vem" (sem artista) — 67%
+- "Em Ti Eu Sou" (Gabriel Guedes) vs "Eu Sou Teu" (Gabriel Guedes) — 67%
+- "Eu Sou Teu" (Gabriel Guedes) vs "Grande Eu Sou" (Gabriel Guedes) — 67%
+- "Quero Conhecer Jesus" (sem artista) vs "Quero Jesus" (Central 3 / Gabriel Guedes) — 67%
+- "Tu És Bom" (Central 3) vs "Tu És Bom (Em Todo o Tempo)" (Eyshila) — 60%
 
 ## Completude por música (ordenado, menor primeiro)
 - A Alegria do Senhor: 45%
@@ -223,103 +232,366 @@ Gerado em: 2026-08-25T17:35:19.468Z
 - Vitorioso És: 45%
 - Vou Crer: 45%
 - Yeshua: 45%
+- 10,000 Reasons (Bless the Lord) — Matt Redman: 60%
+- 1000 Graus — Renascer Praise: 60%
+- A Cada Dia — Hillsong Worship: 60%
+- A Ceia do Senhor — tradicional: 60%
+- A Heart of Worship — Matt Redman: 60%
+- A História de Deus — Livres para Adorar: 60%
+- A Maior Honra — Julliany Souza: 60%
 - A Mensagem da Cruz — Nani Azevedo: 60%
+- A Promessa Está de Pé — Midian Lima / Samuel Messias: 60%
 - A Resposta — Thalles Roberto: 60%
 - A Vitória Chegou — Luanna Dourado / Aurelina Dourado: 60%
 - Aba — Kemuel / Ton Carfi: 60%
+- Aba Pai — Diante do Trono / Gabriela Rocha: 60%
 - Abraça-Me — David Quinlan: 60%
+- Abram Os Portões — Ministério Avivah: 60%
+- Abro Mão — Toque no Altar: 60%
 - Acalma Meu Coração — Anderson Freire: 60%
+- Acima da Média — Anderson Freire: 60%
+- Agnus Dei — David Quinlan: 60%
 - Águas Purificadoras — Diante do Trono: 60%
+- Aguenta Coração — Midian Lima: 60%
+- Ainda Existe uma Cruz — Diante do Trono: 60%
+- Alvo da Minha Adoração — Livres para Adorar: 60%
+- Amazing Grace (My Chains Are Gone) — Chris Tomlin: 60%
+- Amigo de Deus — Adhemar de Campos: 60%
 - Amigo Espírito Santo — Cassiane: 60%
+- Amor Que Enche — Laura Souguellis: 60%
+- Andando Sobre As Águas — Renascer Praise: 60%
+- Andar com Deus — Kleber Lucas: 60%
 - Ao Único — Koinonya: 60%
+- Apocalipse — Damares: 60%
 - Arde Outra Vez — Thalles Roberto: 60%
+- As Muitas Águas — Central 3: 60%
 - Até Que o Senhor Venha — Alessandro Vilas Boas: 60%
 - Atos 2 — Gabriela Rocha: 60%
 - Atrai Meu Coração — Nani Azevedo: 60%
 - Atraídos pelo Fogo — Casa Worship: 60%
+- Avenida do Arrependimento — Thalles Roberto: 60%
+- Basta Uma Palavra — Cassiane: 60%
+- Be Lifted High — Elevation Worship: 60%
+- Bem-Aventurado — Hillsong Worship: 60%
 - Bênçãos Que Não Têm Fim — Isadora Pompeo: 60%
+- Better Is One Day — Matt Redman: 60%
+- Braços de Amor — Isadora Pompeo: 60%
+- Cadeias Quebrar — Soraya Moraes: 60%
 - Canção do Apocalipse — Diante do Trono: 60%
 - Canção do Céu — Anderson Freire: 60%
+- Canção do Valente — Ministério Zoe: 60%
+- Canta Minh'Alma — Diante do Trono: 60%
 - Casa do Pai — Aline Barros: 60%
 - Castelo Forte — tradicional: 60%
+- Celebre — Trazendo a Arca: 60%
+- Céu — Gabriela Rocha: 60%
+- Chuva de Fogo — Cassiane: 60%
 - Chuvas de Graça — Harpa Cristã: 60%
+- Colossenses e Suas Linhas de Amor — fhop music: 60%
+- Com Cristo é Vencer — Cassiane: 60%
+- Com Muito Louvor — Cassiane: 60%
+- Como Nunca Antes — Isadora Pompeo: 60%
+- Compromisso — Régis Danese: 60%
+- Consolador — Damares: 60%
+- Contigo Dançar — André Valadão: 60%
 - Coração de Joelhos — Samuel Miranda: 60%
 - Coração Valente — Anderson Freire: 60%
+- Cordeiro e Leão — Central 3: 60%
+- Creio — Diante do Trono: 60%
 - Creio em Ti — Arthur Callazans / Anderson Freire: 60%
+- Cuida da Minha Casa — Régis Danese: 60%
 - Cuido dos Detalhes — André e Felipe / Isadora Pompeo: 60%
 - Cura — Maria Marçal: 60%
+- Cura-me — Fernanda Brum: 60%
 - Deixa Queimar — Alessandro Vilas Boas: 60%
+- Dependente — Eyshila / Weslei Santos / Damares: 60%
+- Depois da Luta — Sarah Farias / Hellen Miranda: 60%
+- Desejo do Meu Coração — Toque no Altar: 60%
+- Desenvolvendo Amor — Morada: 60%
 - Deserto — Maria Marçal: 60%
+- Desperta — Kemuel: 60%
+- Deus da Força — Thalles Roberto: 60%
+- Deus da Minha Vida — Thalles Roberto: 60%
 - Deus de Aliança — Toque no Altar: 60%
 - Deus de Futuro — Sarah Farias: 60%
 - Deus de Milagres — Davi Sacer: 60%
 - Deus Me Levantou — Thalles Roberto: 60%
 - Deus Não Desperdiça Suas Lágrimas — Paulo Neto: 60%
+- Deus Não Vai Parar — Sarah Farias / Stella Laura / Valesca Mayssa: 60%
+- Digno de Glória — Soraya Moraes: 60%
+- Diminua Eu — Ministério Avivah: 60%
+- Diz — Gabriela Rocha: 60%
+- Do Céu Ele Desceu — Ministério Avivah: 60%
+- Do It Again — Elevation Worship: 60%
+- Dono do Meu Ser — Laura Souguellis: 60%
 - É Tudo Sobre Você — MORADA: 60%
+- Ecoar — Gabriela Rocha: 60%
+- Ele é o Rei — Cassiane: 60%
+- Ele Está Aqui — Régis Danese: 60%
+- Em Fervente Oração — tradicional: 60%
+- Em Ti Eu Sou — Gabriel Guedes: 60%
 - Em Todas as Áreas — Gabriel Brito: 60%
+- Em Tua Presença — Nívea Soares: 60%
 - Enche-Me — Isaías Saad / Gabriela Rocha: 60%
+- Endless Praise — Planetshakers: 60%
+- Enquanto Houver Sol — Eyshila: 60%
+- Envia Avivamento (Começa em Mim) — Livres para Adorar: 60%
 - Era a Mão de Deus — Kailane Frauches: 60%
+- Era Eu — Casa Worship: 60%
+- És Meu Deus — Ministério Avivah: 60%
 - És Real Pra Mim — Fernanda Brum: 60%
+- Escape — Renascer Praise: 60%
+- Espontâneo — Fernanda Brum / Marcos Freire / Ludmila Ferber: 60%
 - Essência da Adoração — David Quinlan: 60%
 - Estamos de Pé — Marcus Salles: 60%
+- Eu Amo a Tua Glória — Isaías Saad / Theo Rubia: 60%
+- Eu e o Rei — Gabriela Rocha / Weslei Santos: 60%
+- Eu Louvo a Ti — Gabriel Guedes: 60%
+- Eu Não Abro Mão — Bruna Karla: 60%
 - Eu Não Sou Mais Órfão — Gabriel Brito: 60%
 - Eu Não Vou Parar — Midian Lima: 60%
+- Eu Quero Ver — Cassiane: 60%
+- Eu Só Quero Te Adorar — Marcus Salles: 60%
+- Eu Só Quero Tua Presença — Theo Rubia: 60%
+- Eu Sou Teu — Gabriel Guedes: 60%
+- Eu Também (100 Bilhões X) — Kemuel: 60%
+- Eu Te Busco — David Quinlan: 60%
+- Eu Te Vejo em Tudo — Casa Worship: 60%
 - Eu Tenho Você — Incendiários / Marcelo Markes: 60%
 - Eu Vou Passar Pela Cruz — PG: 60%
+- Eu Vou Viver Uma Virada — Toque no Altar: 60%
+- Exaltamos — Central 3: 60%
+- Família — Régis Danese: 60%
+- Faz Arder — Casa Worship: 60%
+- Faz Um Milagre em Mim — Régis Danese: 60%
+- Festa no Céu — Cassiane: 60%
+- Fiel É Deus — Delino Marçal: 60%
+- Filho Amado — Laura Souguellis: 60%
+- Filho De Davi — David Quinlan: 60%
+- Filho, Volta — Eyshila: 60%
 - Firme nas Promessas — tradicional: 60%
+- Gemido da Alma — Eyshila: 60%
+- Geração Que Dança — David Quinlan: 60%
+- Give Me Faith — Elevation Worship: 60%
+- Glória — Dunamis Music: 60%
+- Glory — Phil Wickham: 60%
+- Grande Eu Sou — Gabriel Guedes: 60%
 - Grandes Coisas — Fernandinho: 60%
+- Gratidão — Thalles Roberto: 60%
+- Great In Us — Elevation Worship: 60%
+- Guarda Meu Coração — Delino Marçal: 60%
+- Há Poder no Nome — Sarah Farias / One Service: 60%
 - Há um Lugar — Heloisa Rosa: 60%
+- Hey, Pai — Isadora Pompeo: 60%
 - Hino da Vitória — Cassiane: 60%
+- Humilde Rei — Anderson Freire: 60%
+- Imagine — Cassiane: 60%
+- Invocamos — Ministério Avivah: 60%
 - Jeová Jireh — Aline Barros: 60%
 - Jesus é o Caminho — Heloisa Rosa: 60%
+- Jesus Messiah — Chris Tomlin: 60%
+- Jesus Virá — Preto no Branco: 60%
+- Jesus, o Plano Perfeito — Renascer Praise: 60%
+- Jireh — Maverick City Music: 60%
+- Jó — Midian Lima: 60%
+- Lembra Senhor — Toque no Altar: 60%
+- Levanta, Resplandece — Ministério Zoe: 60%
+- Levanto um Aleluia — Diante do Trono / Isaías Saad: 60%
+- Liberdade — Livres para Adorar: 60%
+- Lindo Momento — Julliany Souza: 60%
+- Living Hope — Phil Wickham: 60%
+- Livre Sou — André Valadão: 60%
+- Louvemos Ao Senhor — Adhemar de Campos: 60%
+- Lugar de Glória — Cassiane: 60%
+- Mais Amor, Mais Poder — Vineyard: 60%
+- Mais Perto Meu Deus de Ti — tradicional: 60%
+- Man of Your Word — Maverick City Music: 60%
 - Manancial — Diante do Trono: 60%
+- Manifestação dos Filhos de Deus — Theo Rubia: 60%
+- Maranata — Ministério Avivah: 60%
 - Marca da Promessa — Trazendo a Arca: 60%
+- Me Ama — Diante do Trono: 60%
+- Me Deixe Aqui — Preto no Branco: 60%
+- Me Escolheste — Ministério Avivah: 60%
+- Me Faz Te Amar Mais — Alessandro Vilas Boas: 60%
+- Me Faz Voar — Preto no Branco: 60%
 - Mesmo Sem Entender — Thalles Roberto: 60%
+- Meu Grande Amor — Preto no Branco: 60%
+- Meu Louvor Virá de Ti — Adhemar de Campos: 60%
+- Meu Lugar é Aqui — Dunamis Music: 60%
 - Meu Prazer — PG: 60%
 - Meu Universo — PG: 60%
+- Milagre — André Valadão: 60%
+- Minha Bênção — Cassiane: 60%
 - Minha Calmaria — Gabriel Brito / André e Felipe: 60%
+- Minha Oração — Dunamis Music: 60%
+- Minha Recompensa — Dunamis Music: 60%
+- Minha Vida Dou — André Valadão: 60%
+- Ministração da Cruz — Livres para Adorar: 60%
+- Morada em Mim — Morada: 60%
+- Mostra o Teu Poder — Vineyard: 60%
+- Muda-me — Trazendo a Arca: 60%
+- Na Força do Louvor — Renascer Praise: 60%
+- Na Mesa do Rei — Damares: 60%
 - Nada Além de Ti — Thalles Roberto: 60%
+- Nada Me Satisfaz — Marcus Salles: 60%
+- Nada Pode Calar — Eyshila: 60%
 - Não Chore João — MORADA: 60%
 - Não Há Deus Maior — Comunidade da Graça: 60%
+- Não Há Outro Lugar — Central 3: 60%
+- Não Há Um Nome Igual — Ministério Avivah: 60%
+- Não Negue a Jesus — Cassiane: 60%
+- Não Pare — Midian Lima: 60%
+- Não Quero Ser Mais Eu — Preto no Branco: 60%
+- Não Tenho Outro Bem — Toque no Altar: 60%
+- Não Valeria — Kemuel: 60%
+- Não Vou Desistir — Trazendo a Arca: 60%
 - Nas Palavras de Lázaro — Preto no Branco: 60%
+- Ninguém Pode Parar — Theo Rubia / Fernandinho: 60%
+- No Silêncio — Ministério Zoe: 60%
+- Nothing Is Impossible — Planetshakers: 60%
+- Novo Dia, Novo Tempo — Renascer Praise: 60%
+- Novo Jeito — Kleber Lucas: 60%
+- Nunca Foi Sobre Nós — Ministério Zoe: 60%
+- Nunca Me Deixou — Livres para Adorar: 60%
+- O Adorem — Livres para Adorar: 60%
+- O Amor Venceu a Morte — Ministério Avivah: 60%
+- O Autor — Preto no Branco: 60%
+- O Carpinteiro — Alessandro Vilas Boas: 60%
+- O Come to the Altar — Elevation Worship: 60%
+- O Espírito do Senhor — Kleber Lucas: 60%
+- O Leão e a Igreja — Preto no Branco: 60%
+- O Maior Troféu — Damares: 60%
+- O Mapa do Tesouro — Anderson Freire: 60%
 - O Nome de Jesus — Isadora Pompeo: 60%
+- O Poder da Oração — Sarah Farias / Kailane Frauches: 60%
 - O Que Sua Glória Fez Comigo — Fernanda Brum: 60%
+- O Senhor É Bom Eternamente — Marcus Salles: 60%
 - O Teu Amor — Kemuel: 60%
+- O Teu Olhar — Livres para Adorar: 60%
+- Oceanos — Kemuel: 60%
 - Oh Quão Lindo Esse Nome É — Kemuel: 60%
+- Oi, Jesus — Isadora Pompeo: 60%
 - Olha Pra Mim — Toque no Altar: 60%
+- Olharei Para o Alto — Midian Lima: 60%
+- Onde Jesus Mora — Cassiane: 60%
+- Onde os Anjos Temem Ir — Livres para Adorar: 60%
+- Os Anjos Te Louvam — Preto no Branco: 60%
 - Os Sonhos de Deus — Gabriela Rocha: 60%
+- Ovelhinha — Isadora Pompeo: 60%
+- Para que Entre o Rei — Morada: 60%
 - Para Ti Eu Vou — Central 3: 60%
 - Passa Lá em Casa Jesus — Kailane Frauches: 60%
+- Peregrino — Theo Rubia / Cassiane: 60%
 - Pode Morar Aqui — Theo Rubia: 60%
+- Poder Desse Amor — Hillsong Worship: 60%
 - Poder Pra Salvar — Aline Barros: 60%
+- Poderoso Deus — David Quinlan: 60%
+- Posso Clamar — Eyshila: 60%
+- Pra Recomeçar — Kleber Lucas: 60%
 - Preciso de Ti — Diante do Trono: 60%
 - Primeiro Amor — Carlinhos Felix: 60%
+- Prioridade — Midian Lima: 60%
+- Processo — Isadora Pompeo: 60%
+- Promessa — Renascer Praise: 60%
+- Promises — Maverick City Music: 60%
+- Quando o Mundo Cai Ao Meu Redor — André Valadão: 60%
 - Quão Grande É o Meu Deus — Soraya Moraes: 60%
+- Quão Lindo És — Livres para Adorar: 60%
+- Que Amor É Esse — Delino Marçal: 60%
 - Que Se Abram os Céus — Nívea Soares: 60%
 - Quem É Esse? — Julliany Souza: 60%
+- Quero Conhecer-te Mais — Central 3: 60%
+- Quero Jesus — Central 3 / Gabriel Guedes: 60%
+- Quero Ser Como Criança — David Quinlan: 60%
+- Quero Te Ver — Livres para Adorar: 60%
 - Raridade — Anderson Freire: 60%
+- Recompensa — Cassiane: 60%
+- Redenção — Fernanda Brum: 60%
+- Rei da Glória — Isaías Saad / Juliano Son: 60%
+- Ressuscita o Meu Sonho — Régis Danese: 60%
 - Restitui — Davi Sacer: 60%
 - Resultado — Isadora Pompeo: 60%
+- Rio da Tua Glória — Theo Rubia / Ana Nóbrega: 60%
+- Rocha Eterna — Ministério Avivah: 60%
 - Ruja o Leão — fhop music: 60%
+- Sabor de Mel — Damares: 60%
+- Sacia-me, Senhor e Rei — Toque no Altar: 60%
+- Salmos 126 — Ministério Zoe: 60%
+- Santa Ceia — Fernanda Brum: 60%
 - Santo Pra Sempre — Fernandinho: 60%
 - Santo, Santo, Santo — tradicional: 60%
 - Se Eles Soubessem — Laura Souguellis: 60%
 - Se Eu Não Te Ouvir — Sarah Farias: 60%
+- Se Organize — Preto no Branco: 60%
 - Segura na Mão de Deus — tradicional: 60%
+- Seja Forte — Isadora Pompeo: 60%
+- Senhor, Te Quero — Vineyard: 60%
+- Sensacional — Preto no Branco: 60%
+- Ser Conhecido de Deus — Renascer Praise: 60%
+- Ser Feliz é Bem Mais Fácil — Gabriel Brito: 60%
+- Ser Mudado — Alessandro Vilas Boas: 60%
+- Seu Amor — Isaías Saad / LUDI: 60%
+- Sinfonia de Louvor — Cassiane: 60%
+- Só Quero Ver Você — Dunamis Music: 60%
 - Só Tu És Santo — MORADA: 60%
 - Sobre as Águas — Trazendo a Arca: 60%
+- Sol da Justiça — Diante do Trono: 60%
+- Soldado Ferido — Midian Lima: 60%
+- Solta O Cabo Da Nau — André Valadão: 60%
+- Sonhe Grande — Delino Marçal: 60%
+- Sopra Espírito — Soraya Moraes: 60%
+- Sou Humano — Bruna Karla: 60%
 - Sua Paz — Isadora Pompeo: 60%
+- Sua Presença É Tudo Pra Mim — Gabriel Guedes: 60%
+- Tá Chorando Por Quê? — Preto no Branco: 60%
+- Talking to Jesus — Maverick City Music: 60%
+- Te Conhecer — Toque no Altar: 60%
 - Tempo de Festa — Diante do Trono: 60%
+- Tetelestai — Diante do Trono: 60%
 - Teu Amor Não Falha — Nívea Soares: 60%
+- Teu Chamado — Kleber Lucas: 60%
+- Teu Querer Em Mim — Gabriel Guedes: 60%
+- Teu Santo Nome — Gabriela Rocha: 60%
+- The Anthem — Planetshakers: 60%
+- This Is Amazing Grace — Phil Wickham: 60%
+- This Is Our Time — Planetshakers: 60%
 - Todas as Coisas / Tudo Entregarei — Isaías Saad: 60%
+- Todo o Céu — Central 3: 60%
 - Todos Um — Kemuel: 60%
+- Transfiguração — Central 3: 60%
+- Tremendo e Santo — Cassiane: 60%
+- Tributo a Yehovah — Adhemar de Campos: 60%
+- True Love — Phil Wickham: 60%
+- Tu És Bom — Central 3: 60%
+- Tu És Bom (Em Todo o Tempo) — Eyshila: 60%
+- Tu Podes — Régis Danese: 60%
+- Tu Reinas — Diante do Trono: 60%
 - Tua Graça Me Basta — Davi Sacer: 60%
+- Tudo a Ver com Ele — Central 3 / André Aquino: 60%
 - Tudo É Perda — Felipe Rodrigues: 60%
+- Um Milhão de Anos — Theo Rubia: 60%
+- Um Novo Vencedor — Damares: 60%
+- Uma Coisa — Morada: 60%
+- Vai Valer A Pena — Livres para Adorar: 60%
+- Vale a Pena — Cassiane: 60%
 - Vamos Cantar — Julia Vitória / Marcelo Markes: 60%
+- Veio o Teu Amor — Laura Souguellis: 60%
 - Vejo Uma Luz — Rebeca Carvalho: 60%
 - Vem — Julia Vitória: 60%
+- Vem, Esta é a Hora — Vineyard: 60%
+- Vencedor Sempre Serei — Cassiane: 60%
 - Vencendo de Joelhos — Kemilly Santos: 60%
 - Vencendo Vem Jesus — tradicional: 60%
+- Vendavais — Anderson Freire: 60%
 - Venha Ao Teu Reino — Davi Sacer: 60%
+- Vento Impetuoso — Casa Worship: 60%
 - Vida aos Sepulcros — Gabriela Rocha: 60%
 - Vim Falar com Deus — Delino Marçal: 60%
+- Vimos Adorar — Kleber Lucas: 60%
+- Você Me Leva ao Deserto — Ministério Zoe: 60%
+- Você Não Imagina — Midian Lima / Delino Marçal: 60%
+- Você Tem Um Pai — Anderson Freire: 60%
+- Vou Seguir — Cassiane: 60%
+- We Shall Not Be Broken — Matt Redman: 60%
+- Yahweh — Vineyard: 60%
